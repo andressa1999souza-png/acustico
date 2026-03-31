@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Acústico - Tubulação PVC</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0056b3">
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; background-color: #f4f4f9; }
+        .grafico-container { background: white; padding: 20px; border-radius: 10px; box-shadow: 0px 4px 10px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto; }
+        .status-normal { color: #28a745; font-weight: bold; margin-top: 15px; font-size: 1.2em; }
+        .status-alerta { color: #dc3545; font-weight: bold; margin-top: 15px; font-size: 1.2em; animation: piscar 1s infinite; }
+        
+        @keyframes piscar { 50% { opacity: 0.5; } }
+        button { margin-top: 15px; padding: 10px 20px; background-color: #0056b3; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background-color: #004494; }
+    </style>
+</head>
+<body>
+    <h1>Monitoramento - Rede PVC</h1>
+    
+    <div class="grafico-container">
+        <canvas id="graficoFrequencia"></canvas>
+        <p id="textoStatus" class="status-normal">Aguardando dados...</p>
+    </div>
+
+    <button onclick="solicitarPermissaoNotificacao()">Ativar Notificações de Alerta</button>
+
+    <script>
+        function solicitarPermissaoNotificacao() {
+            if ("Notification" in window) {
+                Notification.requestPermission().then(permission => {
+                    if (permission === "granted") alert("Notificações ativadas!");
+                });
+            }
+        }
+
+        function enviarNotificacao(frequencia) {
+            if ("Notification" in window && Notification.permission === "granted") {
+                new Notification("⚠️ ALERTA: Ar na Tubulação (PVC)!", {
+                    body: `Ruído de ar detectado na frequência de ${frequencia}Hz.`,
+                    vibrate: [200, 100, 200]
+                });
+            }
+        }
+
+        const ctx = document.getElementById('graficoFrequencia').getContext('2d');
+        const meuGrafico = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [], 
+                datasets: [{
+                    label: 'Frequência (Hz) - Alvo PVC: 70 a 850',
+                    data: [], 
+                    borderColor: '#0056b3',
+                    backgroundColor: 'rgba(0, 86, 179, 0.2)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.3 
+                }]
+            },
+            options: { 
+                responsive: true,
+                animation: false,
+                scales: { 
+                    // Eixo Y ajustado para dar zoom na área que importa (0 a 1000 Hz)
+                    y: { beginAtZero: true, max: 1000 } 
+                }
+            }
+        });
+
+        function atualizarPainel(novoTempo, novaFrequencia) {
+            meuGrafico.data.labels.push(novoTempo);
+            meuGrafico.data.datasets[0].data.push(novaFrequencia);
+            
+            if(meuGrafico.data.labels.length > 8) {
+                meuGrafico.data.labels.shift();
+                meuGrafico.data.datasets[0].data.shift();
+            }
+            meuGrafico.update();
+
+            const textoStatus = document.getElementById('textoStatus');
+            
+            // Lógica travada nos dados de PVC que você trouxe
+            if (novaFrequencia >= 70 && novaFrequencia <= 850) {
+                textoStatus.textContent = `⚠️ ALERTA: Ruído de Ar Detectado! (${novaFrequencia} Hz)`;
+                textoStatus.className = 'status-alerta';
+                enviarNotificacao(novaFrequencia);
+            } else {
+                textoStatus.textContent = `Status: Fluxo de água normal (${novaFrequencia} Hz)`;
+                textoStatus.className = 'status-normal';
+            }
+        }
+
+        // Simulação do seu MQTT rodando:
+        // Coloquei um ruído normal de água (baixo) e um pico na faixa do PVC (ex: 450Hz)
+        const dadosSimulados = [40, 55, 60, 450, 620, 50]; 
+        let index = 0;
+
+        setInterval(() => {
+            if(index < dadosSimulados.length) {
+                let dataAtual = new Date();
+                let horaFormatada = dataAtual.getHours() + ":" + dataAtual.getMinutes() + ":" + dataAtual.getSeconds();
+                
+                atualizarPainel(horaFormatada, dadosSimulados[index]);
+                index++;
+            } else {
+                index = 0; 
+            }
+        }, 2000);
+
+    </script>
+</body>
+</html>
