@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel Acústico - Tubulação PVC</title>
+    <title>Painel da Andressa - Teste</title>
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#0056b3">
+    <meta name="theme-color" content="purple">
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
@@ -16,12 +16,12 @@
         .status-alerta { color: #dc3545; font-weight: bold; margin-top: 15px; font-size: 1.2em; animation: piscar 1s infinite; }
         
         @keyframes piscar { 50% { opacity: 0.5; } }
-        button { margin-top: 15px; padding: 10px 20px; background-color: #0056b3; color: white; border: none; border-radius: 5px; cursor: pointer; }
-        button:hover { background-color: #004494; }
+        button { margin-top: 15px; padding: 10px 20px; background-color: purple; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background-color: #6a0dad; }
     </style>
 </head>
 <body>
-    <h1>Monitoramento - Rede PVC</h1>
+    <h1>Painel da Andressa - Rede PVC</h1>
     
     <div class="grafico-container">
         <canvas id="graficoFrequencia"></canvas>
@@ -56,8 +56,8 @@
                 datasets: [{
                     label: 'Frequência (Hz) - Alvo PVC: 70 a 850',
                     data: [], 
-                    borderColor: '#0056b3',
-                    backgroundColor: 'rgba(0, 86, 179, 0.2)',
+                    borderColor: 'purple',
+                    backgroundColor: 'rgba(128, 0, 128, 0.2)',
                     borderWidth: 2,
                     fill: true,
                     tension: 0.3 
@@ -85,7 +85,7 @@
 
             const textoStatus = document.getElementById('textoStatus');
             
-            // Lógica travada nos dados de PVC que você trouxe
+            // Lógica travada nos dados de PVC
             if (novaFrequencia >= 70 && novaFrequencia <= 850) {
                 textoStatus.textContent = `⚠️ ALERTA: Ruído de Ar Detectado! (${novaFrequencia} Hz)`;
                 textoStatus.className = 'status-alerta';
@@ -96,8 +96,7 @@
             }
         }
 
-        // Simulação do seu MQTT rodando:
-        // Coloquei um ruído normal de água (baixo) e um pico na faixa do PVC (ex: 450Hz)
+        // Simulação rodando:
         const dadosSimulados = [40, 55, 60, 450, 620, 50]; 
         let index = 0;
 
