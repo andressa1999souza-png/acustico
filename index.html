@@ -3,51 +3,134 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel da Andressa - Teste</title>
+    <title>Painel da Andressa - Monitoramento</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="purple">
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; background-color: #f4f4f9; }
-        .grafico-container { background: white; padding: 20px; border-radius: 10px; box-shadow: 0px 4px 10px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto; }
+        /* Variáveis de cores para facilitar o Modo Escuro */
+        :root {
+            --cor-fundo: #f4f4f9;
+            --cor-container: white;
+            --cor-texto: #333;
+            --cor-borda: #ddd;
+        }
+
+        .dark-mode {
+            --cor-fundo: #1a1a2e;
+            --cor-container: #16213e;
+            --cor-texto: #e94560;
+            --cor-borda: #444;
+            color: white;
+        }
+
+        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; background-color: var(--cor-fundo); color: var(--cor-texto); transition: 0.3s; }
+        
+        .container { background: var(--cor-container); padding: 20px; border-radius: 10px; box-shadow: 0px 4px 10px rgba(0,0,0,0.2); max-width: 600px; margin: 15px auto; transition: 0.3s; }
+        
+        /* Estilos do LED */
+        .painel-topo { display: flex; justify-content: space-between; align-items: center; max-width: 600px; margin: 0 auto; }
+        .led-status { display: flex; align-items: center; gap: 8px; font-weight: bold; font-size: 0.9em; }
+        .bolinha-led { width: 12px; height: 12px; background-color: #00ff00; border-radius: 50%; box-shadow: 0 0 8px #00ff00; animation: piscarLed 1.5s infinite; }
+        
+        /* Status do Gráfico */
         .status-normal { color: #28a745; font-weight: bold; margin-top: 15px; font-size: 1.2em; }
         .status-alerta { color: #dc3545; font-weight: bold; margin-top: 15px; font-size: 1.2em; animation: piscar 1s infinite; }
         
-        @keyframes piscar { 50% { opacity: 0.5; } }
-        button { margin-top: 15px; padding: 10px 20px; background-color: purple; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        /* Tabela de Histórico */
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9em; color: var(--cor-texto); }
+        th, td { border: 1px solid var(--cor-borda); padding: 8px; text-align: center; }
+        th { background-color: purple; color: white; }
+        
+        /* Botões */
+        button { padding: 10px 15px; background-color: purple; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.2s; }
         button:hover { background-color: #6a0dad; }
+        .btn-tema { background-color: #333; }
+        .dark-mode .btn-tema { background-color: #f1c40f; color: #333; }
+
+        @keyframes piscar { 50% { opacity: 0.5; } }
+        @keyframes piscarLed { 0% {opacity: 1;} 50% {opacity: 0.3;} 100% {opacity: 1;} }
     </style>
 </head>
 <body>
-    <h1>Painel da Andressa - Rede PVC</h1>
-    
-    <div class="grafico-container">
-        <canvas id="graficoFrequencia"></canvas>
-        <p id="textoStatus" class="status-normal">Aguardando dados...</p>
+
+    <div class="painel-topo">
+        <div class="led-status">
+            <div class="bolinha-led"></div> ESP32: Online
+        </div>
+        <button class="btn-tema" onclick="mudarTema()">🌙 Alternar Tema</button>
     </div>
 
-    <button onclick="solicitarPermissaoNotificacao()">Ativar Notificações de Alerta</button>
+    <h1>Painel da Andressa - Rede PVC</h1>
+    
+    <div class="container">
+        <canvas id="graficoFrequencia"></canvas>
+        <p id="textoStatus" class="status-normal">Aguardando dados...</p>
+        <button onclick="solicitarPermissaoNotificacao()" style="margin-top: 10px;">🔔 Ativar Alertas no Celular</button>
+    </div>
+
+    <div class="container">
+        <h3>📋 Histórico de Alertas (Ar na Tubulação)</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Hora</th>
+                    <th>Frequência</th>
+                    <th>Ocorrência</th>
+                </tr>
+            </thead>
+            <tbody id="corpoTabela">
+                </tbody>
+        </table>
+    </div>
 
     <script>
+        // Função do Modo Escuro
+        function mudarTema() {
+            document.body.classList.toggle('dark-mode');
+        }
+
+        // Permissão de Notificação
         function solicitarPermissaoNotificacao() {
             if ("Notification" in window) {
                 Notification.requestPermission().then(permission => {
-                    if (permission === "granted") alert("Notificações ativadas!");
+                    if (permission === "granted") alert("Notificações ativadas com sucesso!");
                 });
             }
         }
 
         function enviarNotificacao(frequencia) {
             if ("Notification" in window && Notification.permission === "granted") {
-                new Notification("⚠️ ALERTA: Ar na Tubulação (PVC)!", {
-                    body: `Ruído de ar detectado na frequência de ${frequencia}Hz.`,
+                new Notification("⚠️ ALERTA ESP32: Ar na Tubulação!", {
+                    body: `O sensor detectou ruído de ar (PVC) em ${frequencia}Hz.`,
                     vibrate: [200, 100, 200]
                 });
             }
         }
 
+        // Adiciona linha na tabela de histórico
+        function registrarHistorico(tempo, frequencia) {
+            const tabela = document.getElementById('corpoTabela');
+            const novaLinha = document.createElement('tr');
+            
+            novaLinha.innerHTML = `
+                <td>${tempo}</td>
+                <td style="color: #dc3545; font-weight: bold;">${frequencia} Hz</td>
+                <td>Ar Detectado ⚠️</td>
+            `;
+            
+            // Coloca a nova linha sempre no topo
+            tabela.insertBefore(novaLinha, tabela.firstChild);
+
+            // Limita o histórico a 5 linhas para não encher a tela
+            if(tabela.children.length > 5) {
+                tabela.removeChild(tabela.lastChild);
+            }
+        }
+
+        // Configuração do Gráfico
         const ctx = document.getElementById('graficoFrequencia').getContext('2d');
         const meuGrafico = new Chart(ctx, {
             type: 'line',
@@ -67,43 +150,46 @@
                 responsive: true,
                 animation: false,
                 scales: { 
-                    // Eixo Y ajustado para dar zoom na área que importa (0 a 1000 Hz)
                     y: { beginAtZero: true, max: 1000 } 
                 }
             }
         });
 
+        // Função Principal que atualiza tudo
         function atualizarPainel(novoTempo, novaFrequencia) {
+            // Atualiza Gráfico
             meuGrafico.data.labels.push(novoTempo);
             meuGrafico.data.datasets[0].data.push(novaFrequencia);
-            
             if(meuGrafico.data.labels.length > 8) {
                 meuGrafico.data.labels.shift();
                 meuGrafico.data.datasets[0].data.shift();
             }
             meuGrafico.update();
 
+            // Atualiza Textos e Dispara Alertas
             const textoStatus = document.getElementById('textoStatus');
             
-            // Lógica travada nos dados de PVC
             if (novaFrequencia >= 70 && novaFrequencia <= 850) {
                 textoStatus.textContent = `⚠️ ALERTA: Ruído de Ar Detectado! (${novaFrequencia} Hz)`;
                 textoStatus.className = 'status-alerta';
                 enviarNotificacao(novaFrequencia);
+                registrarHistorico(novoTempo, novaFrequencia); // Salva na tabela
             } else {
                 textoStatus.textContent = `Status: Fluxo de água normal (${novaFrequencia} Hz)`;
                 textoStatus.className = 'status-normal';
             }
         }
 
-        // Simulação rodando:
+        // Simulador de Dados (Substitua depois pelo MQTT do ESP32)
         const dadosSimulados = [40, 55, 60, 450, 620, 50]; 
         let index = 0;
 
         setInterval(() => {
             if(index < dadosSimulados.length) {
                 let dataAtual = new Date();
-                let horaFormatada = dataAtual.getHours() + ":" + dataAtual.getMinutes() + ":" + dataAtual.getSeconds();
+                let horaFormatada = dataAtual.getHours().toString().padStart(2, '0') + ":" + 
+                                    dataAtual.getMinutes().toString().padStart(2, '0') + ":" + 
+                                    dataAtual.getSeconds().toString().padStart(2, '0');
                 
                 atualizarPainel(horaFormatada, dadosSimulados[index]);
                 index++;
