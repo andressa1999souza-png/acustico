@@ -1,203 +1,328 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title> Painel de Monitoramento Acústico - </title>
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="purple">
-    
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
-    <style>
-        /* Variáveis de cores para facilitar o Modo Escuro */
-        :root {
-            --cor-fundo: #f4f4f9;
-            --cor-container: white;
-            --cor-texto: #333;
-            --cor-borda: #ddd;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ACOUSTIC PIPE MONITOR</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap');
+    *{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#0d1117;--panel:#161b22;--card:#1c2128;--border:#30363d;
+      --green:#39d353;--cyan:#58a6ff;--amber:#e3b341;--red:#f85149;
+      --purple:#d2a8ff;--text:#e6edf3;--muted:#8b949e;
+      --font-mono:'Space Mono',monospace;--font-body:'DM Sans',sans-serif;
+    }
+    body{background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:14px;padding:0}
+    h2.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
 
-        .dark-mode {
-            --cor-fundo: #1a1a2e;
-            --cor-container: #16213e;
-            --cor-texto: #e94560;
-            --cor-borda: #444;
-            color: white;
-        }
+    /* Cabeçalho */
+    .header{background:linear-gradient(135deg,#0d1117 0%,#161b22 100%);border-bottom:1px solid var(--border);padding:16px 20px;display:flex;align-items:center;gap:12px}
+    .header-dot{width:10px;height:10px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s ease-in-out infinite}
+    @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.7;transform:scale(1.15)}}
+    .header-title{font-family:var(--font-mono);font-size:13px;color:var(--cyan);letter-spacing:.05em}
+    .header-sub{font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:.08em;margin-top:2px}
+    .badge{font-family:var(--font-mono);font-size:9px;background:#21262d;border:1px solid var(--border);padding:2px 7px;border-radius:12px;color:var(--muted);margin-left:auto}
 
-        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; background-color: var(--cor-fundo); color: var(--cor-texto); transition: 0.3s; }
-        
-        .container { background: var(--cor-container); padding: 20px; border-radius: 10px; box-shadow: 0px 4px 10px rgba(0,0,0,0.2); max-width: 600px; margin: 15px auto; transition: 0.3s; }
-        
-        /* Estilos do LED */
-        .painel-topo { display: flex; justify-content: space-between; align-items: center; max-width: 600px; margin: 0 auto; }
-        .led-status { display: flex; align-items: center; gap: 8px; font-weight: bold; font-size: 0.9em; }
-        .bolinha-led { width: 12px; height: 12px; background-color: #00ff00; border-radius: 50%; box-shadow: 0 0 8px #00ff00; animation: piscarLed 1.5s infinite; }
-        
-        /* Status do Gráfico */
-        .status-normal { color: #28a745; font-weight: bold; margin-top: 15px; font-size: 1.2em; }
-        .status-alerta { color: #dc3545; font-weight: bold; margin-top: 15px; font-size: 1.2em; animation: piscar 1s infinite; }
-        
-        /* Tabela de Histórico */
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9em; color: var(--cor-texto); }
-        th, td { border: 1px solid var(--cor-borda); padding: 8px; text-align: center; }
-        th { background-color: purple; color: white; }
-        
-        /* Botões */
-        button { padding: 10px 15px; background-color: purple; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.2s; }
-        button:hover { background-color: #6a0dad; }
-        .btn-tema { background-color: #333; }
-        .dark-mode .btn-tema { background-color: #f1c40f; color: #333; }
+    /* Abas */
+    .tabs{display:flex;gap:0;border-bottom:1px solid var(--border);background:var(--panel);padding:0 20px}
+    .tab{font-family:var(--font-mono);font-size:10px;padding:10px 14px;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;letter-spacing:.05em;transition:all .15s;user-select:none}
+    .tab:hover{color:var(--text)}
+    .tab.active{color:var(--cyan);border-bottom-color:var(--cyan)}
 
-        @keyframes piscar { 50% { opacity: 0.5; } }
-        @keyframes piscarLed { 0% {opacity: 1;} 50% {opacity: 0.3;} 100% {opacity: 1;} }
-    </style>
+    .content{display:none;padding:16px 20px}
+    .content.active{display:block}
+
+    /* Dashboard */
+    .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
+    .grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:12px}
+    .metric{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;position:relative;overflow:hidden}
+    .metric-label{font-family:var(--font-mono);font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px}
+    .metric-value{font-family:var(--font-mono);font-size:22px;font-weight:700;line-height:1}
+    .metric-unit{font-family:var(--font-mono);font-size:11px;color:var(--muted);margin-top:2px}
+    .metric-status{position:absolute;top:10px;right:10px;width:7px;height:7px;border-radius:50%}
+    .status-ok{background:var(--green);box-shadow:0 0 6px var(--green)}
+    .status-warn{background:var(--amber);box-shadow:0 0 6px var(--amber);animation:blink 1s ease-in-out infinite}
+    .status-err{background:var(--red);box-shadow:0 0 6px var(--red);animation:blink .5s ease-in-out infinite}
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+    .alert-box{border-radius:8px;padding:10px 12px;margin-bottom:10px;font-family:var(--font-mono);font-size:11px;border:1px solid;display:flex;align-items:center;gap:8px}
+    .alert-ok{background:#0d2818;border-color:#1a4731;color:var(--green)}
+    .alert-warn{background:#2a1f00;border-color:#4d3a00;color:var(--amber)}
+    .alert-err{background:#2d0f0e;border-color:#5c1c1a;color:var(--red)}
+
+    .waveform{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:12px}
+    .wf-label{font-family:var(--font-mono);font-size:9px;color:var(--muted);letter-spacing:.1em;margin-bottom:8px}
+    canvas{display:block;width:100%!important}
+
+    /* Botões */
+    .btn-action {font-family:var(--font-mono);font-size:10px;padding:7px 12px;border-radius:6px;cursor:pointer; transition: 0.2s;}
+    .btn-normal {background:var(--card);border:1px solid var(--border);color:var(--text);}
+    .btn-vazamento {background:#2d0f0e;border:1px solid #5c1c1a;color:var(--red);}
+    .btn-ar {background:#2a1f00;border:1px solid #4d3a00;color:var(--amber);}
+    .btn-noti {background:#0d2818;border:1px solid var(--green);color:var(--green);}
+
+    /* Tabela de Histórico (Adaptada para o Modo Escuro) */
+    .history-table {width: 100%;border-collapse: collapse;margin-top: 10px;font-family: var(--font-mono);font-size: 10px;}
+    .history-table th, .history-table td {border: 1px solid var(--border);padding: 8px;text-align: left;color: var(--muted);}
+    .history-table th {background-color: #21262d;color: var(--cyan);letter-spacing: .05em;}
+    .history-table td {background-color: var(--card);}
+  </style>
 </head>
 <body>
 
-    <div class="painel-topo">
-        <div class="led-status">
-            <div class="bolinha-led"></div> ESP32: Online
-        </div>
-        <button class="btn-tema" onclick="mudarTema()">🌙 Alternar Tema</button>
+<h2 class="sr-only">Sistema de Monitoramento Acústico para Canos — ESP32-S3</h2>
+
+<div class="header">
+  <div class="header-dot"></div>
+  <div>
+    <div class="header-title">ACOUSTIC PIPE MONITOR v1.0</div>
+    <div class="header-sub">ESP32-S3 · INMP441 · SW420</div>
+  </div>
+  <div class="badge">PROTÓTIPO ACADÊMICO</div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="showTab('dashboard')">DASHBOARD</div>
+  <div class="tab" onclick="showTab('diagram')">DIAGRAMA</div>
+  <div class="tab" onclick="showTab('code')">FIRMWARE</div>
+</div>
+
+<!-- TAB 1: DASHBOARD -->
+<div class="content active" id="tab-dashboard">
+  <div id="alert-container">
+    <div class="alert-box alert-ok">▶ SISTEMA NORMAL — nenhuma anomalia detectada</div>
+  </div>
+
+  <div class="grid-3">
+    <div class="metric">
+      <div class="metric-status status-ok" id="s-vazamento"></div>
+      <div class="metric-label">Freq. dominante</div>
+      <div class="metric-value" id="freq-val" style="color:var(--cyan)">82</div>
+      <div class="metric-unit">Hz — frequência principal</div>
     </div>
-
-    <h1>Painel de Monitoramento Acústico</h1>
-    
-    <div class="container">
-        <canvas id="graficoFrequencia"></canvas>
-        <p id="textoStatus" class="status-normal">Aguardando dados...</p>
-        <button onclick="solicitarPermissaoNotificacao()" style="margin-top: 10px;">🔔 Ativar Alertas no Celular</button>
+    <div class="metric">
+      <div class="metric-status status-ok" id="s-vibracao"></div>
+      <div class="metric-label">Vibração (SW420)</div>
+      <div class="metric-value" id="vib-val" style="color:var(--green)">0.12</div>
+      <div class="metric-unit">g — aceleração</div>
     </div>
-
-    <div class="container">
-        <h3>📋 Histórico de Alertas (Ar na Tubulação)</h3>
-        <table>
-            <thead>
-                <tr>
-                    <th>Hora</th>
-                    <th>Frequência</th>
-                    <th>Ocorrência</th>
-                </tr>
-            </thead>
-            <tbody id="corpoTabela">
-                </tbody>
-        </table>
+    <div class="metric">
+      <div class="metric-status status-ok" id="s-pressao"></div>
+      <div class="metric-label">Nível sonoro RMS</div>
+      <div class="metric-value" id="rms-val" style="color:var(--purple)">34</div>
+      <div class="metric-unit">dB — ambiente</div>
     </div>
+  </div>
 
-    <script>
-        // Função do Modo Escuro
-        function mudarTema() {
-            document.body.classList.toggle('dark-mode');
-        }
+  <div class="waveform">
+    <div class="wf-label">ESPECTRO DE FREQUÊNCIAS — FFT em tempo real</div>
+    <canvas id="fftCanvas" height="80"></canvas>
+  </div>
 
-        // Permissão de Notificação
-        function solicitarPermissaoNotificacao() {
-            if ("Notification" in window) {
-                Notification.requestPermission().then(permission => {
-                    if (permission === "granted") alert("Notificações ativadas com sucesso!");
-                });
-            }
-        }
+  <!-- Controles e Alertas -->
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom: 20px;">
+    <button class="btn-action btn-normal" onclick="simEvent('normal')">▶ FLUXO NORMAL</button>
+    <button class="btn-action btn-vazamento" onclick="simEvent('vazamento')">⚠ SIM. VAZAMENTO</button>
+    <button class="btn-action btn-ar" onclick="simEvent('ar')">⚠ SIM. ENTRADA DE AR</button>
+    <button class="btn-action btn-noti" onclick="solicitarPermissaoNotificacao()" style="margin-left:auto;">🔔 ATIVAR NOTIFICAÇÕES</button>
+  </div>
 
-        function enviarNotificacao(frequencia) {
-            if ("Notification" in window && Notification.permission === "granted") {
-                new Notification("⚠️ ALERTA ESP32: Ar na Tubulação!", {
-                    body: `O sensor detectou ruído de ar (PVC) em ${frequencia}Hz.`,
-                    vibrate: [200, 100, 200]
-                });
-            }
-        }
+  <!-- Tabela de Histórico Integrada -->
+  <div class="waveform">
+    <div class="wf-label">📋 HISTÓRICO DE OCORRÊNCIAS</div>
+    <table class="history-table">
+      <thead>
+        <tr>
+          <th>HORA</th>
+          <th>FREQUÊNCIA</th>
+          <th>TIPO DE INCIDENTE</th>
+        </tr>
+      </thead>
+      <tbody id="corpoTabela">
+        <!-- Linhas geradas via JavaScript -->
+      </tbody>
+    </table>
+  </div>
+</div>
 
-        // Adiciona linha na tabela de histórico
-        function registrarHistorico(tempo, frequencia) {
-            const tabela = document.getElementById('corpoTabela');
-            const novaLinha = document.createElement('tr');
-            
-            novaLinha.innerHTML = `
-                <td>${tempo}</td>
-                <td style="color: #dc3545; font-weight: bold;">${frequencia} Hz</td>
-                <td>Ar Detectado ⚠️</td>
-            `;
-            
-            // Coloca a nova linha sempre no topo
-            tabela.insertBefore(novaLinha, tabela.firstChild);
+<!-- TAB 2 e TAB 3 (Estruturas base mantidas para não quebrar o layout) -->
+<div class="content" id="tab-diagram">
+    <p style="color: var(--muted); font-family: var(--font-mono);">[Diagrama será carregado aqui]</p>
+</div>
+<div class="content" id="tab-code">
+    <p style="color: var(--muted); font-family: var(--font-mono);">[Firmware será carregado aqui]</p>
+</div>
 
-            // Limita o histórico a 5 linhas para não encher a tela
-            if(tabela.children.length > 5) {
-                tabela.removeChild(tabela.lastChild);
-            }
-        }
+<script>
+// --- Controle de Abas ---
+function showTab(name) {
+  document.querySelectorAll('.content').forEach(e => e.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(e => e.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  
+  const tabs = document.querySelectorAll('.tab');
+  const map = {dashboard:0,diagram:1,code:2};
+  tabs[map[name]].classList.add('active');
+}
 
-        // Configuração do Gráfico
-        const ctx = document.getElementById('graficoFrequencia').getContext('2d');
-        const meuGrafico = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: [], 
-                datasets: [{
-                    label: 'Frequência (Hz) - Alvo PVC: 70 a 850',
-                    data: [], 
-                    borderColor: 'purple',
-                    backgroundColor: 'rgba(128, 0, 128, 0.2)',
-                    borderWidth: 2,
-                    fill: true,
-                    tension: 0.3 
-                }]
-            },
-            options: { 
-                responsive: true,
-                animation: false,
-                scales: { 
-                    y: { beginAtZero: true, max: 1000 } 
-                }
-            }
+// --- Funções de Notificação (do seu código original) ---
+function solicitarPermissaoNotificacao() {
+    if ("Notification" in window) {
+        Notification.requestPermission().then(permission => {
+            if (permission === "granted") alert("Notificações ativadas com sucesso!");
         });
+    }
+}
 
-        // Função Principal que atualiza tudo
-        function atualizarPainel(novoTempo, novaFrequencia) {
-            // Atualiza Gráfico
-            meuGrafico.data.labels.push(novoTempo);
-            meuGrafico.data.datasets[0].data.push(novaFrequencia);
-            if(meuGrafico.data.labels.length > 8) {
-                meuGrafico.data.labels.shift();
-                meuGrafico.data.datasets[0].data.shift();
-            }
-            meuGrafico.update();
+function enviarNotificacao(tipo, frequencia) {
+    if ("Notification" in window && Notification.permission === "granted") {
+        new Notification(`⚠️ ALERTA ESP32: ${tipo}!`, {
+            body: `O sensor INMP441 detectou anomalia em ${frequencia}Hz.`,
+            vibrate: [200, 100, 200]
+        });
+    }
+}
 
-            // Atualiza Textos e Dispara Alertas
-            const textoStatus = document.getElementById('textoStatus');
-            
-            if (novaFrequencia >= 70 && novaFrequencia <= 850) {
-                textoStatus.textContent = `⚠️ ALERTA: Ruído de Ar Detectado! (${novaFrequencia} Hz)`;
-                textoStatus.className = 'status-alerta';
-                enviarNotificacao(novaFrequencia);
-                registrarHistorico(novoTempo, novaFrequencia); // Salva na tabela
-            } else {
-                textoStatus.textContent = `Status: Fluxo de água normal (${novaFrequencia} Hz)`;
-                textoStatus.className = 'status-normal';
-            }
-        }
+function registrarHistorico(frequencia, tipo) {
+    let dataAtual = new Date();
+    let horaFormatada = dataAtual.getHours().toString().padStart(2, '0') + ":" + 
+                        dataAtual.getMinutes().toString().padStart(2, '0') + ":" + 
+                        dataAtual.getSeconds().toString().padStart(2, '0');
 
-        // Simulador de Dados (Substitua depois pelo MQTT do ESP32)
-        const dadosSimulados = [40, 55, 60, 450, 620, 50]; 
-        let index = 0;
+    const tabela = document.getElementById('corpoTabela');
+    const novaLinha = document.createElement('tr');
+    
+    let cor = tipo === "VAZAMENTO DETECTADO" ? "var(--red)" : "var(--amber)";
+    
+    novaLinha.innerHTML = `
+        <td>${horaFormatada}</td>
+        <td style="color: ${cor}; font-weight: bold;">${frequencia} Hz</td>
+        <td style="color: ${cor};">${tipo} ⚠️</td>
+    `;
+    
+    tabela.insertBefore(novaLinha, tabela.firstChild);
 
-        setInterval(() => {
-            if(index < dadosSimulados.length) {
-                let dataAtual = new Date();
-                let horaFormatada = dataAtual.getHours().toString().padStart(2, '0') + ":" + 
-                                    dataAtual.getMinutes().toString().padStart(2, '0') + ":" + 
-                                    dataAtual.getSeconds().toString().padStart(2, '0');
-                
-                atualizarPainel(horaFormatada, dadosSimulados[index]);
-                index++;
-            } else {
-                index = 0; 
-            }
-        }, 2000);
+    if(tabela.children.length > 5) {
+        tabela.removeChild(tabela.lastChild);
+    }
+}
 
-    </script>
+// --- Simulação do Gráfico e Eventos (do código do seu amigo) ---
+const fftCtx = document.getElementById('fftCanvas').getContext('2d');
+let simMode = 'normal';
+let ultimoAlerta = 'normal'; // Evita flodar notificações repetidas
+let t = 0;
+
+function setMetric(id, val, color) {
+  const el = document.getElementById(id);
+  if (el) { el.textContent = val; if (color) el.style.color = color; }
+}
+
+const modes = {
+  normal: {
+    label: '▶ SISTEMA NORMAL — nenhuma anomalia detectada',
+    cls: 'alert-ok',
+    freq: () => 60 + Math.sin(t * 0.05) * 15,
+    rms: () => 30 + Math.random() * 8,
+    vib: () => (0.08 + Math.random() * 0.06).toFixed(2),
+    pattern: 'FLUXO NORMAL',
+    sv: ['status-ok', 'status-ok', 'status-ok'],
+    freqColor: 'var(--cyan)',
+    fftPeakHz: 80,
+    fftPeakMag: 0.4,
+  },
+  vazamento: {
+    label: '⚠ ALERTA — POSSÍVEL VAZAMENTO DETECTADO',
+    cls: 'alert-err',
+    freq: () => 380 + Math.sin(t * 0.1) * 80,
+    rms: () => 72 + Math.random() * 15,
+    vib: () => (0.18 + Math.random() * 0.1).toFixed(2),
+    pattern: 'VAZAMENTO DETECTADO',
+    sv: ['status-err', 'status-warn', 'status-warn'],
+    freqColor: 'var(--red)',
+    fftPeakHz: 400,
+    fftPeakMag: 0.9,
+  },
+  ar: {
+    label: '⚠ ALERTA — ENTRADA DE AR NO SISTEMA',
+    cls: 'alert-warn',
+    freq: () => 1800 + Math.sin(t * 0.15) * 400,
+    rms: () => 55 + Math.random() * 10,
+    vib: () => (0.14 + Math.random() * 0.08).toFixed(2),
+    pattern: 'ENTRADA DE AR',
+    sv: ['status-warn', 'status-ok', 'status-warn'],
+    freqColor: 'var(--amber)',
+    fftPeakHz: 2000,
+    fftPeakMag: 0.75,
+  }
+};
+
+function simEvent(mode) { 
+  simMode = mode; 
+}
+
+function drawFFT(peakHz, mag, mode) {
+  const w = fftCtx.canvas.offsetWidth || 600;
+  fftCtx.canvas.width = w;
+  fftCtx.canvas.height = 80;
+  fftCtx.fillStyle = '#010409';
+  fftCtx.fillRect(0, 0, w, 80);
+  const colors = {normal:'#58a6ff',vazamento:'#f85149',ar:'#e3b341'};
+  const col = colors[mode] || '#58a6ff';
+  const bins = 64;
+  const bw = w / bins;
+  for (let i = 0; i < bins; i++) {
+    const hz = (i / bins) * 8000;
+    const dist = Math.abs(hz - peakHz);
+    const spread = mode === 'ar' ? 1200 : 600;
+    let h = mag * Math.exp(-dist * dist / (2 * spread * spread)) * 70;
+    h += Math.random() * 4;
+    h = Math.min(h, 74);
+    fftCtx.fillStyle = col;
+    fftCtx.globalAlpha = 0.85;
+    fftCtx.fillRect(i * bw + 1, 78 - h, bw - 2, h);
+  }
+  fftCtx.globalAlpha = 1;
+  fftCtx.fillStyle = '#444c56';
+  fftCtx.font = '9px Space Mono, monospace';
+  ['0','1k','2k','4k','8k'].forEach((l, i) => {
+    fftCtx.fillText(l, i * (w / 4) + 2, 78);
+  });
+}
+
+function loop() {
+  t++;
+  const m = modes[simMode];
+  const freqAtual = Math.round(m.freq());
+  const rms = m.rms();
+  
+  setMetric('freq-val', freqAtual, m.freqColor);
+  setMetric('vib-val', m.vib());
+  setMetric('rms-val', Math.round(rms));
+
+  const alert = document.getElementById('alert-container');
+  alert.innerHTML = `<div class="alert-box ${m.cls}">${m.label}</div>`;
+
+  ['s-vazamento','s-vibracao','s-pressao'].forEach((id,i)=>{
+    const el = document.getElementById(id);
+    if (el) { el.className = 'metric-status ' + m.sv[i]; }
+  });
+
+  drawFFT(m.fftPeakHz + (Math.random()-0.5)*30, m.fftPeakMag, simMode);
+  
+  // Gatilho para registrar histórico e notificar se o status mudar para alerta
+  if (simMode !== 'normal' && simMode !== ultimoAlerta) {
+      registrarHistorico(freqAtual, m.pattern);
+      enviarNotificacao(m.pattern, freqAtual);
+      ultimoAlerta = simMode;
+  } else if (simMode === 'normal') {
+      ultimoAlerta = 'normal';
+  }
+
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
 </body>
 </html>
