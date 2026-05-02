@@ -5,13 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ACOUSTIC PIPE MONITOR</title>
   
-  <!-- AQUI ESTÁ A OPÇÃO DE BAIXAR O APP DE VOLTA! -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0d1117">
   
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap');
-    /* ... resto do código ... */
     *{box-sizing:border-box;margin:0;padding:0}
     :root{
       --bg:#0d1117;--panel:#161b22;--card:#1c2128;--border:#30363d;
@@ -68,7 +66,7 @@
     .btn-ar {background:#2a1f00;border:1px solid #4d3a00;color:var(--amber);}
     .btn-noti {background:#0d2818;border:1px solid var(--green);color:var(--green);}
 
-    /* Tabela de Histórico (Adaptada para o Modo Escuro) */
+    /* Tabela de Histórico */
     .history-table {width: 100%;border-collapse: collapse;margin-top: 10px;font-family: var(--font-mono);font-size: 10px;}
     .history-table th, .history-table td {border: 1px solid var(--border);padding: 8px;text-align: left;color: var(--muted);}
     .history-table th {background-color: #21262d;color: var(--cyan);letter-spacing: .05em;}
@@ -104,7 +102,7 @@
     <div class="metric">
       <div class="metric-status status-ok" id="s-vazamento"></div>
       <div class="metric-label">Freq. dominante</div>
-      <div class="metric-value" id="freq-val" style="color:var(--cyan)">82</div>
+      <div class="metric-value" id="freq-val" style="color:var(--cyan)">0</div>
       <div class="metric-unit">Hz — frequência principal</div>
     </div>
     <div class="metric">
@@ -116,27 +114,26 @@
     <div class="metric">
       <div class="metric-status status-ok" id="s-pressao"></div>
       <div class="metric-label">Nível sonoro RMS</div>
-      <div class="metric-value" id="rms-val" style="color:var(--purple)">34</div>
+      <div class="metric-value" id="rms-val" style="color:var(--purple)">0</div>
       <div class="metric-unit">dB — ambiente</div>
     </div>
   </div>
 
   <div class="waveform">
-    <div class="wf-label">ESPECTRO DE FREQUÊNCIAS — FFT em tempo real</div>
+    <div class="wf-label">ESPECTRO DE FREQUÊNCIAS — FFT</div>
     <canvas id="fftCanvas" height="80"></canvas>
   </div>
 
-  <!-- Controles e Alertas -->
+  <!-- Controles e Alertas (Agora integrados com o Banco de Dados!) -->
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom: 20px;">
-    <button class="btn-action btn-normal" onclick="simEvent('normal')">▶ FLUXO NORMAL</button>
-    <button class="btn-action btn-vazamento" onclick="simEvent('vazamento')">⚠ SIM. VAZAMENTO</button>
-    <button class="btn-action btn-ar" onclick="simEvent('ar')">⚠ SIM. ENTRADA DE AR</button>
+    <button class="btn-action btn-normal" onclick="inserirDadoManual(80, 30, false)">▶ INJETAR FLUXO NORMAL</button>
+    <button class="btn-action btn-ar" onclick="inserirDadoManual(1850, 60, true)">⚠ INJETAR ENTRADA DE AR</button>
     <button class="btn-action btn-noti" onclick="solicitarPermissaoNotificacao()" style="margin-left:auto;">🔔 ATIVAR NOTIFICAÇÕES</button>
   </div>
 
   <!-- Tabela de Histórico Integrada -->
   <div class="waveform">
-    <div class="wf-label">📋 HISTÓRICO DE OCORRÊNCIAS</div>
+    <div class="wf-label">📋 HISTÓRICO DE OCORRÊNCIAS (Puxado do MySQL)</div>
     <table class="history-table">
       <thead>
         <tr>
@@ -146,13 +143,12 @@
         </tr>
       </thead>
       <tbody id="corpoTabela">
-        <!-- Linhas geradas via JavaScript -->
+        <!-- Linhas geradas via JavaScript puxando do Node.js -->
       </tbody>
     </table>
   </div>
 </div>
 
-<!-- TAB 2 e TAB 3 (Estruturas base mantidas para não quebrar o layout) -->
 <div class="content" id="tab-diagram">
     <p style="color: var(--muted); font-family: var(--font-mono);">[Diagrama será carregado aqui]</p>
 </div>
@@ -166,13 +162,12 @@ function showTab(name) {
   document.querySelectorAll('.content').forEach(e => e.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(e => e.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
-  
   const tabs = document.querySelectorAll('.tab');
   const map = {dashboard:0,diagram:1,code:2};
   tabs[map[name]].classList.add('active');
 }
 
-// --- Funções de Notificação (do seu código original) ---
+// --- Funções de Notificação ---
 function solicitarPermissaoNotificacao() {
     if ("Notification" in window) {
         Notification.requestPermission().then(permission => {
@@ -190,98 +185,35 @@ function enviarNotificacao(tipo, frequencia) {
     }
 }
 
-function registrarHistorico(frequencia, tipo) {
-    let dataAtual = new Date();
-    let horaFormatada = dataAtual.getHours().toString().padStart(2, '0') + ":" + 
-                        dataAtual.getMinutes().toString().padStart(2, '0') + ":" + 
-                        dataAtual.getSeconds().toString().padStart(2, '0');
-
-    const tabela = document.getElementById('corpoTabela');
-    const novaLinha = document.createElement('tr');
-    
-    let cor = tipo === "VAZAMENTO DETECTADO" ? "var(--red)" : "var(--amber)";
-    
-    novaLinha.innerHTML = `
-        <td>${horaFormatada}</td>
-        <td style="color: ${cor}; font-weight: bold;">${frequencia} Hz</td>
-        <td style="color: ${cor};">${tipo} ⚠️</td>
-    `;
-    
-    tabela.insertBefore(novaLinha, tabela.firstChild);
-
-    if(tabela.children.length > 5) {
-        tabela.removeChild(tabela.lastChild);
-    }
-}
-
-// --- Simulação do Gráfico e Eventos (do código do seu amigo) ---
-const fftCtx = document.getElementById('fftCanvas').getContext('2d');
-let simMode = 'normal';
-let ultimoAlerta = 'normal'; // Evita flodar notificações repetidas
-let t = 0;
-
+// --- Atualiza Textos na Tela ---
 function setMetric(id, val, color) {
   const el = document.getElementById(id);
   if (el) { el.textContent = val; if (color) el.style.color = color; }
 }
 
-const modes = {
-  normal: {
-    label: '▶ SISTEMA NORMAL — nenhuma anomalia detectada',
-    cls: 'alert-ok',
-    freq: () => 60 + Math.sin(t * 0.05) * 15,
-    rms: () => 30 + Math.random() * 8,
-    vib: () => (0.08 + Math.random() * 0.06).toFixed(2),
-    pattern: 'FLUXO NORMAL',
-    sv: ['status-ok', 'status-ok', 'status-ok'],
-    freqColor: 'var(--cyan)',
-    fftPeakHz: 80,
-    fftPeakMag: 0.4,
-  },
-  vazamento: {
-    label: '⚠ ALERTA — POSSÍVEL VAZAMENTO DETECTADO',
-    cls: 'alert-err',
-    freq: () => 380 + Math.sin(t * 0.1) * 80,
-    rms: () => 72 + Math.random() * 15,
-    vib: () => (0.18 + Math.random() * 0.1).toFixed(2),
-    pattern: 'VAZAMENTO DETECTADO',
-    sv: ['status-err', 'status-warn', 'status-warn'],
-    freqColor: 'var(--red)',
-    fftPeakHz: 400,
-    fftPeakMag: 0.9,
-  },
-  ar: {
-    label: '⚠ ALERTA — ENTRADA DE AR NO SISTEMA',
-    cls: 'alert-warn',
-    freq: () => 1800 + Math.sin(t * 0.15) * 400,
-    rms: () => 55 + Math.random() * 10,
-    vib: () => (0.14 + Math.random() * 0.08).toFixed(2),
-    pattern: 'ENTRADA DE AR',
-    sv: ['status-warn', 'status-ok', 'status-warn'],
-    freqColor: 'var(--amber)',
-    fftPeakHz: 2000,
-    fftPeakMag: 0.75,
-  }
-};
+// --- Função para Desenhar o Gráfico (Animado com dados do banco) ---
+const fftCtx = document.getElementById('fftCanvas').getContext('2d');
+let ultimaFrequenciaHz = 80;
+let modoAtualGrafico = 'normal';
 
-function simEvent(mode) { 
-  simMode = mode; 
-}
-
-function drawFFT(peakHz, mag, mode) {
+function drawFFT() {
   const w = fftCtx.canvas.offsetWidth || 600;
   fftCtx.canvas.width = w;
   fftCtx.canvas.height = 80;
   fftCtx.fillStyle = '#010409';
   fftCtx.fillRect(0, 0, w, 80);
-  const colors = {normal:'#58a6ff',vazamento:'#f85149',ar:'#e3b341'};
-  const col = colors[mode] || '#58a6ff';
+  
+  const col = modoAtualGrafico === 'ar' ? '#e3b341' : '#58a6ff';
+  const mag = modoAtualGrafico === 'ar' ? 0.75 : 0.4;
+  const spread = modoAtualGrafico === 'ar' ? 1200 : 600;
+  // Adiciona uma pequena variação para parecer "ao vivo"
+  const peakHz = ultimaFrequenciaHz + (Math.random() - 0.5) * 30;
+
   const bins = 64;
   const bw = w / bins;
   for (let i = 0; i < bins; i++) {
     const hz = (i / bins) * 8000;
     const dist = Math.abs(hz - peakHz);
-    const spread = mode === 'ar' ? 1200 : 600;
     let h = mag * Math.exp(-dist * dist / (2 * spread * spread)) * 70;
     h += Math.random() * 4;
     h = Math.min(h, 74);
@@ -295,40 +227,94 @@ function drawFFT(peakHz, mag, mode) {
   ['0','1k','2k','4k','8k'].forEach((l, i) => {
     fftCtx.fillText(l, i * (w / 4) + 2, 78);
   });
+  
+  requestAnimationFrame(drawFFT); // Mantém o gráfico se mexendo
+}
+drawFFT(); // Inicia o gráfico
+
+// --- FUNÇÃO NOVA: Envia dados para o MySQL ao clicar nos botões ---
+async function inserirDadoManual(freq, amp, ar) {
+    try {
+        await fetch('http://localhost:3000/api/leituras', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ frequencia_hz: freq, amplitude_db: amp, detectou_ar: ar })
+        });
+        buscarDadosDoBanco(); // Atualiza a tela logo em seguida
+    } catch (erro) {
+        console.error("Erro ao inserir dado:", erro);
+        alert("Erro ao conectar no servidor Node.js. Ele está rodando?");
+    }
 }
 
-function loop() {
-  t++;
-  const m = modes[simMode];
-  const freqAtual = Math.round(m.freq());
-  const rms = m.rms();
-  
-  setMetric('freq-val', freqAtual, m.freqColor);
-  setMetric('vib-val', m.vib());
-  setMetric('rms-val', Math.round(rms));
+// --- CONEXÃO COM O BANCO DE DADOS (Substitui a simulação) ---
+let ultimoAlertaNotificado = null;
 
-  const alert = document.getElementById('alert-container');
-  alert.innerHTML = `<div class="alert-box ${m.cls}">${m.label}</div>`;
+async function buscarDadosDoBanco() {
+    try {
+        const resposta = await fetch('http://localhost:3000/api/leituras');
+        const dados = await resposta.json();
 
-  ['s-vazamento','s-vibracao','s-pressao'].forEach((id,i)=>{
-    const el = document.getElementById(id);
-    if (el) { el.className = 'metric-status ' + m.sv[i]; }
-  });
+        if (dados.length > 0) {
+            const leituraAtual = dados[0]; // Pega a linha mais nova do banco
 
-  drawFFT(m.fftPeakHz + (Math.random()-0.5)*30, m.fftPeakMag, simMode);
-  
-  // Gatilho para registrar histórico e notificar se o status mudar para alerta
-  if (simMode !== 'normal' && simMode !== ultimoAlerta) {
-      registrarHistorico(freqAtual, m.pattern);
-      enviarNotificacao(m.pattern, freqAtual);
-      ultimoAlerta = simMode;
-  } else if (simMode === 'normal') {
-      ultimoAlerta = 'normal';
-  }
+            // Atualiza os painéis principais
+            setMetric('freq-val', leituraAtual.frequencia_hz, leituraAtual.detectou_ar ? 'var(--amber)' : 'var(--cyan)');
+            setMetric('rms-val', leituraAtual.amplitude_db);
+            
+            // Atualiza o gráfico
+            ultimaFrequenciaHz = leituraAtual.frequencia_hz;
+            modoAtualGrafico = leituraAtual.detectou_ar ? 'ar' : 'normal';
 
-  requestAnimationFrame(loop);
+            // Verifica Alertas e Notificações
+            const alertContainer = document.getElementById('alert-container');
+            const idLeitura = leituraAtual.id; // O ID único que vem do MySQL
+            
+            if (leituraAtual.detectou_ar) {
+                alertContainer.innerHTML = `<div class="alert-box alert-warn">⚠ ALERTA — ENTRADA DE AR NO SISTEMA</div>`;
+                document.getElementById('s-vazamento').className = 'metric-status status-warn';
+                
+                // Só apita no celular se for um alerta NOVO que acabou de chegar no banco
+                if (idLeitura !== ultimoAlertaNotificado) {
+                    enviarNotificacao("ENTRADA DE AR", leituraAtual.frequencia_hz);
+                    ultimoAlertaNotificado = idLeitura;
+                }
+            } else {
+                alertContainer.innerHTML = `<div class="alert-box alert-ok">▶ SISTEMA NORMAL — nenhuma anomalia detectada</div>`;
+                document.getElementById('s-vazamento').className = 'metric-status status-ok';
+                ultimoAlertaNotificado = idLeitura; // Atualiza para não apitar dados velhos
+            }
+
+            // --- Preenche a Tabela ---
+            const tabela = document.getElementById('corpoTabela');
+            tabela.innerHTML = ''; // Limpa a tabela
+            
+            dados.forEach(leitura => {
+                let dataObjeto = new Date(leitura.timestamp_leitura);
+                let hora = dataObjeto.getHours().toString().padStart(2, '0') + ":" + 
+                           dataObjeto.getMinutes().toString().padStart(2, '0') + ":" + 
+                           dataObjeto.getSeconds().toString().padStart(2, '0');
+                
+                let tipo = leitura.detectou_ar ? "ENTRADA DE AR ⚠" : "FLUXO NORMAL";
+                let cor = leitura.detectou_ar ? "var(--amber)" : "var(--cyan)";
+
+                const novaLinha = document.createElement('tr');
+                novaLinha.innerHTML = `
+                    <td>${hora}</td>
+                    <td style="color: ${cor}; font-weight: bold;">${leitura.frequencia_hz} Hz</td>
+                    <td style="color: ${cor};">${tipo}</td>
+                `;
+                tabela.appendChild(novaLinha);
+            });
+        }
+    } catch (erro) {
+        console.error("Erro ao buscar dados do banco:", erro);
+    }
 }
-requestAnimationFrame(loop);
+
+// O site pergunta ao Node.js a cada 2 segundos se tem dados novos
+setInterval(buscarDadosDoBanco, 2000);
+buscarDadosDoBanco(); // Puxa logo que a página abre
 </script>
 </body>
 </html>
