@@ -4,10 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ACOUSTIC PIPE MONITOR</title>
-  
+ 
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0d1117">
-  
+ 
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap');
     *{box-sizing:border-box;margin:0;padding:0}
@@ -152,11 +152,9 @@
     <p style="color: var(--muted); font-family: var(--font-mono);">[Firmware será carregado aqui]</p>
 </div>
 
-<!-- Procure a parte final do seu arquivo, onde estão as funções de script e substitua por esta versão: -->
-
 <script>
 // --- CONFIGURAÇÃO DE REDE ---
-const API_URL = "https://ahoy-symphony-relearn.ngrok-free.dev";
+ const API_URL = "https://ahoy-symphony-relearn.ngrok-free.dev/api/leituras";
 
 // --- Controle de Abas ---
 function showTab(name) {
@@ -164,99 +162,101 @@ function showTab(name) {
   document.querySelectorAll('.tab').forEach(e => e.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
   const tabs = document.querySelectorAll('.tab');
-  const map = {dashboard:0,diagram:1,code:2};
+  const map = {dashboard:0, diagram:1, code:2};
   tabs[map[name]].classList.add('active');
 }
 
-// --- Funções de Inserção (SIMULAÇÃO) ---
+// --- Funções Auxiliares Criadas (Que estavam faltando) ---
+function setMetric(id, value, color) {
+  const el = document.getElementById(id);
+  if (el) {
+    el.innerText = value;
+    if (color) el.style.color = color;
+  }
+}
+
+function solicitarPermissaoNotificacao() {
+  if (!("Notification" in window)) {
+    alert("Seu navegador não suporta notificações.");
+  } else if (Notification.permission === "granted") {
+    alert("As notificações já estão ativadas!");
+  } else if (Notification.permission !== "denied") {
+    Notification.requestPermission().then(permission => {
+      if (permission === "granted") {
+        alert("Notificações ativadas com sucesso!");
+      }
+    });
+  }
+}
+
+function enviarNotificacao(titulo, corpo) {
+  if ("Notification" in window && Notification.permission === "granted") {
+    new Notification(titulo, { body: corpo });
+  }
+}
+
+// --- FUNÇÃO PARA INSERIR DADOS (SIMULAÇÃO) ---
 async function inserirDadoManual(freq, amp, ar) {
-    const dadosSimulados = { 
-        frequencia_hz: freq, 
-        amplitude_db: amp, 
-        detectou_ar: ar 
+    const dadosSimulados = {
+        frequencia_hz: freq,
+        amplitude_db: amp,
+        detectou_ar: ar
     };
 
     console.log("Simulando envio:", dadosSimulados);
 
     try {
-        const response = await fetch(API_URL, {
+        const response = await fetch(`${API_URL}/api/leituras`, {
             method: 'POST',
-            headers: { 
+            headers: {
                 'Content-Type': 'application/json',
-                'ngrok-skip-browser-warning': '69420' // Pula o aviso do ngrok
+                'ngrok-skip-browser-warning': 'true'
             },
             body: JSON.stringify(dadosSimulados)
         });
 
         if (response.ok) {
-            console.log("Sucesso ao gravar no MySQL!");
-            buscarDadosDoBanco(); // Atualiza a tabela na hora
+            console.log("✅ Sucesso ao gravar no MySQL!");
+            await buscarDadosDoBanco();
         } else {
-            console.error("Erro no servidor:", response.status);
+            console.error("❌ Erro no servidor:", response.status);
         }
     } catch (erro) {
-        console.error("Erro ao inserir dado:", erro);
+        console.error("❌ Erro ao inserir dado:", erro);
         alert("Erro ao conectar no servidor. O Node.js e o Ngrok estão rodando?");
     }
 }
 
-// --- Funções de Busca e Atualização da Tela ---
-async function buscarDadosDoBanco() {
-    try {
-        const resposta = await fetch(API_URL, {
-            headers: { 'ngrok-skip-browser-warning': '69420' }
-        });
-        const dados = await resposta.json();
+// --- FUNÇÃO PARA BUSCAR E ATUALIZAR A TELA ---
+let ultimoAlertaNotificado = null;
 
-        if (dados && dados.length > 0) {
-            const leituraAtual = dados[0]; 
+function buscarDadosDoBanco() {
+    // 1. Coloque a URL completa COM o /api/leituras no final
+    const urlApi = 'https://ahoy-symphony-relearn.ngrok-free.dev/api/leituras';
 
-            // Atualiza os números no topo
-            setMetric('freq-val', leituraAtual.frequencia_hz, leituraAtual.detectou_ar ? 'var(--amber)' : 'var(--cyan)');
-            setMetric('rms-val', leituraAtual.amplitude_db);
-            
-            ultimaFrequenciaHz = leituraAtual.frequencia_hz;
-            modoAtualGrafico = leituraAtual.detectou_ar ? 'ar' : 'normal';
-
-            const alertContainer = document.getElementById('alert-container');
-            
-            if (leituraAtual.detectou_ar) {
-                alertContainer.innerHTML = `<div class="alert-box alert-warn">⚠ ALERTA — ENTRADA DE AR NO SISTEMA</div>`;
-                document.getElementById('s-vazamento').className = 'metric-status status-warn';
-            } else {
-                alertContainer.innerHTML = `<div class="alert-box alert-ok">▶ SISTEMA NORMAL — nenhuma anomalia detectada</div>`;
-                document.getElementById('s-vazamento').className = 'metric-status status-ok';
-            }
-
-            // Atualiza a tabela de histórico
-            const tabela = document.getElementById('corpoTabela');
-            tabela.innerHTML = '';
-            
-            dados.slice(0, 10).forEach(leitura => {
-                let dataObjeto = new Date(leitura.timestamp_leitura);
-                let hora = dataObjeto.getHours().toString().padStart(2, '0') + ":" + 
-                           dataObjeto.getMinutes().toString().padStart(2, '0') + ":" + 
-                           dataObjeto.getSeconds().toString().padStart(2, '0');
-                
-                let tipo = leitura.detectou_ar ? "ENTRADA DE AR ⚠" : "FLUXO NORMAL";
-                let cor = leitura.detectou_ar ? "var(--amber)" : "var(--cyan)";
-
-                const novaLinha = document.createElement('tr');
-                novaLinha.innerHTML = `
-                    <td>${hora}</td>
-                    <td style="color: ${cor}; font-weight: bold;">${leitura.frequencia_hz} Hz</td>
-                    <td style="color: ${cor};">${tipo}</td>
-                `;
-                tabela.appendChild(novaLinha);
-            });
+    fetch(urlApi, {
+        method: 'GET', // ou 'POST' se esse for o botão de enviar dados
+        headers: {
+            'Content-Type': 'application/json',
+            // 2. ESSA LINHA É OBRIGATÓRIA para o Ngrok gratuito não travar o site
+            'ngrok-skip-browser-warning': 'true' 
         }
-    } catch (erro) {
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Erro na rede: ' + response.status);
+        }
+        return response.json();
+    })
+    .then(dados => {
+        console.log("Dados recebidos:", dados);
+        // Aqui vai o seu código que atualiza a tela/gráfico
+    })
+    .catch(erro => {
         console.error("Erro ao buscar dados do banco:", erro);
-    }
+    });
 }
-
-// Restante das suas funções (drawFFT, setMetric, etc) continuam iguais abaixo...
-
+// --- GRÁFICO FFT ---
 const fftCtx = document.getElementById('fftCanvas').getContext('2d');
 let ultimaFrequenciaHz = 80;
 let modoAtualGrafico = 'normal';
@@ -296,80 +296,7 @@ function drawFFT() {
 }
 drawFFT();
 
-async function inserirDadoManual(freq, amp, ar) {
-    try {
-        await fetch(API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ frequencia_hz: freq, amplitude_db: amp, detectou_ar: ar })
-        });
-        buscarDadosDoBanco();
-    } catch (erro) {
-        console.error("Erro ao inserir dado:", erro);
-        alert("Erro ao conectar no servidor ngrok. Verifique se o seu terminal com 'node server.js' está aberto.");
-    }
-}
-
-let ultimoAlertaNotificado = null;
-
-async function buscarDadosDoBanco() {
-    try {
-        const resposta = await fetch(API_URL);
-        const dados = await resposta.json();
-
-        if (dados && dados.length > 0) {
-            const leituraAtual = dados[0]; 
-
-            setMetric('freq-val', leituraAtual.frequencia_hz, leituraAtual.detectou_ar ? 'var(--amber)' : 'var(--cyan)');
-            setMetric('rms-val', leituraAtual.amplitude_db);
-            
-            ultimaFrequenciaHz = leituraAtual.frequencia_hz;
-            modoAtualGrafico = leituraAtual.detectou_ar ? 'ar' : 'normal';
-
-            const alertContainer = document.getElementById('alert-container');
-            const idLeitura = leituraAtual.id;
-            
-            if (leituraAtual.detectou_ar) {
-                alertContainer.innerHTML = `<div class="alert-box alert-warn">⚠ ALERTA — ENTRADA DE AR NO SISTEMA</div>`;
-                document.getElementById('s-vazamento').className = 'metric-status status-warn';
-                
-                if (idLeitura !== ultimoAlertaNotificado) {
-                    enviarNotificacao("ENTRADA DE AR", leituraAtual.frequencia_hz);
-                    ultimoAlertaNotificado = idLeitura;
-                }
-            } else {
-                alertContainer.innerHTML = `<div class="alert-box alert-ok">▶ SISTEMA NORMAL — nenhuma anomalia detectada</div>`;
-                document.getElementById('s-vazamento').className = 'metric-status status-ok';
-                ultimoAlertaNotificado = idLeitura;
-            }
-
-            const tabela = document.getElementById('corpoTabela');
-            tabela.innerHTML = '';
-            
-            dados.slice(0, 10).forEach(leitura => {
-                let dataObjeto = new Date(leitura.timestamp_leitura);
-                let hora = dataObjeto.getHours().toString().padStart(2, '0') + ":" + 
-                           dataObjeto.getMinutes().toString().padStart(2, '0') + ":" + 
-                           dataObjeto.getSeconds().toString().padStart(2, '0');
-                
-                let tipo = leitura.detectou_ar ? "ENTRADA DE AR ⚠" : "FLUXO NORMAL";
-                let cor = leitura.detectou_ar ? "var(--amber)" : "var(--cyan)";
-
-                const novaLinha = document.createElement('tr');
-                novaLinha.innerHTML = `
-                    <td>${hora}</td>
-                    <td style="color: ${cor}; font-weight: bold;">${leitura.frequencia_hz} Hz</td>
-                    <td style="color: ${cor};">${tipo}</td>
-                `;
-                tabela.appendChild(novaLinha);
-            });
-        }
-    } catch (erro) {
-        console.error("Erro ao buscar dados do banco:", erro);
-    }
-}
-
-// Atualiza a cada 2 segundos
+// Inicia as atualizações automáticas
 setInterval(buscarDadosDoBanco, 2000);
 buscarDadosDoBanco();
 </script>
