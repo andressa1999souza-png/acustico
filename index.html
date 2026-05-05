@@ -61,8 +61,9 @@
     /* Botões */
     .btn-action {font-family:var(--font-mono);font-size:10px;padding:7px 12px;border-radius:6px;cursor:pointer; transition: 0.2s;}
     .btn-normal {background:var(--card);border:1px solid var(--border);color:var(--text);}
-    .btn-vazamento {background:#2d0f0e;border:1px solid #5c1c1a;color:var(--red);}
+    .btn-normal:hover {background:#21262d;}
     .btn-ar {background:#2a1f00;border:1px solid #4d3a00;color:var(--amber);}
+    .btn-ar:hover {background:#3d2d00;}
     .btn-noti {background:#0d2818;border:1px solid var(--green);color:var(--green);}
 
     /* Tabela de Histórico */
@@ -74,7 +75,7 @@
 </head>
 <body>
 
-<h2 class="sr-only">Sistema de Monitoramento Acústico para Canos — ESP32-S3</h2>
+<h2 class="sr-only">Sistema de Monitoramento Acústico para Canos</h2>
 
 <div class="header">
   <div class="header-dot"></div>
@@ -154,7 +155,8 @@
 
 <script>
 // --- CONFIGURAÇÃO DE REDE ---
- const API_URL = "https://ahoy-symphony-relearn.ngrok-free.dev/api/leituras";
+// Aqui a URL já tem o /api/leituras, não precisamos concatenar depois!
+const API_URL = "https://ahoy-symphony-relearn.ngrok-free.dev/api/leituras";
 
 // --- Controle de Abas ---
 function showTab(name) {
@@ -164,15 +166,6 @@ function showTab(name) {
   const tabs = document.querySelectorAll('.tab');
   const map = {dashboard:0, diagram:1, code:2};
   tabs[map[name]].classList.add('active');
-}
-
-// --- Funções Auxiliares Criadas (Que estavam faltando) ---
-function setMetric(id, value, color) {
-  const el = document.getElementById(id);
-  if (el) {
-    el.innerText = value;
-    if (color) el.style.color = color;
-  }
 }
 
 function solicitarPermissaoNotificacao() {
@@ -189,13 +182,7 @@ function solicitarPermissaoNotificacao() {
   }
 }
 
-function enviarNotificacao(titulo, corpo) {
-  if ("Notification" in window && Notification.permission === "granted") {
-    new Notification(titulo, { body: corpo });
-  }
-}
-
-// --- FUNÇÃO PARA INSERIR DADOS (SIMULAÇÃO) ---
+// --- FUNÇÃO PARA INSERIR DADOS (SIMULAÇÃO PELOS BOTÕES) ---
 async function inserirDadoManual(freq, amp, ar) {
     const dadosSimulados = {
         frequencia_hz: freq,
@@ -203,42 +190,39 @@ async function inserirDadoManual(freq, amp, ar) {
         detectou_ar: ar
     };
 
-    console.log("Simulando envio:", dadosSimulados);
+    console.log("👆 Simulando envio:", dadosSimulados);
 
     try {
-        const response = await fetch(`${API_URL}/api/leituras`, {
+        // CORRIGIDO: Usando a API_URL diretamente (sem duplicar o caminho)
+        const response = await fetch(API_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'ngrok-skip-browser-warning': 'true'
+                'ngrok-skip-browser-warning': 'true' // Obrigatório!
             },
             body: JSON.stringify(dadosSimulados)
         });
 
         if (response.ok) {
             console.log("✅ Sucesso ao gravar no MySQL!");
+            // Chama a função de buscar para atualizar a tabela na hora
             await buscarDadosDoBanco();
         } else {
             console.error("❌ Erro no servidor:", response.status);
         }
     } catch (erro) {
         console.error("❌ Erro ao inserir dado:", erro);
-        alert("Erro ao conectar no servidor. O Node.js e o Ngrok estão rodando?");
+        alert("Erro de conexão. Verifique se o Node e o Ngrok estão rodando!");
     }
 }
 
 // --- FUNÇÃO PARA BUSCAR E ATUALIZAR A TELA ---
-let ultimoAlertaNotificado = null;
-
 function buscarDadosDoBanco() {
-    // 1. Coloque a URL completa COM o /api/leituras no final
-    const urlApi = 'https://ahoy-symphony-relearn.ngrok-free.dev/api/leituras';
-
-    fetch(urlApi, {
-        method: 'GET', // ou 'POST' se esse for o botão de enviar dados
+    // CORRIGIDO: Usando a variável API_URL global
+    fetch(API_URL, {
+        method: 'GET',
         headers: {
             'Content-Type': 'application/json',
-            // 2. ESSA LINHA É OBRIGATÓRIA para o Ngrok gratuito não travar o site
             'ngrok-skip-browser-warning': 'true' 
         }
     })
@@ -249,14 +233,53 @@ function buscarDadosDoBanco() {
         return response.json();
     })
     .then(dados => {
-        console.log("Dados recebidos:", dados);
-        // Aqui vai o seu código que atualiza a tela/gráfico
+        if(dados.length > 0) {
+            // Pega o dado mais recente (o primeiro da lista)
+            const leituraAtual = dados[0];
+            
+            // 1. Atualiza os números grandes do painel
+            document.getElementById('freq-val').innerText = leituraAtual.frequencia_hz;
+            document.getElementById('rms-val').innerText = leituraAtual.amplitude_db;
+            
+            // 2. Atualiza o Gráfico Animado (FFT)
+            ultimaFrequenciaHz = leituraAtual.frequencia_hz;
+            modoAtualGrafico = leituraAtual.detectou_ar ? 'ar' : 'normal';
+
+            // 3. Atualiza a barra de alerta
+            const alertContainer = document.getElementById('alert-container');
+            if(leituraAtual.detectou_ar) {
+                alertContainer.innerHTML = `<div class="alert-box alert-warn">⚠ ANOMALIA DETECTADA — Entrada de ar registrada!</div>`;
+            } else {
+                alertContainer.innerHTML = `<div class="alert-box alert-ok">▶ SISTEMA NORMAL — nenhuma anomalia detectada</div>`;
+            }
+
+            // 4. Preenche a tabela com o histórico
+            const corpoTabela = document.getElementById('corpoTabela');
+            corpoTabela.innerHTML = ""; // Limpa a tabela antes de preencher
+            
+            dados.forEach(dado => {
+                // Formata a data/hora para ficar legível
+                const dataFormatada = new Date(dado.timestamp_leitura).toLocaleTimeString('pt-BR');
+                // Define a tag baseada no problema
+                const tagIncidente = dado.detectou_ar ? '<span style="color:var(--amber); font-weight:bold;">⚠ Ar no Sistema</span>' : '<span style="color:var(--green)">Normal</span>';
+                
+                const linhaHTML = `
+                    <tr>
+                        <td>${dataFormatada}</td>
+                        <td>${dado.frequencia_hz} Hz</td>
+                        <td>${tagIncidente}</td>
+                    </tr>
+                `;
+                corpoTabela.innerHTML += linhaHTML;
+            });
+        }
     })
     .catch(erro => {
         console.error("Erro ao buscar dados do banco:", erro);
     });
 }
-// --- GRÁFICO FFT ---
+
+// --- GRÁFICO FFT ANIMADO ---
 const fftCtx = document.getElementById('fftCanvas').getContext('2d');
 let ultimaFrequenciaHz = 80;
 let modoAtualGrafico = 'normal';
@@ -296,7 +319,7 @@ function drawFFT() {
 }
 drawFFT();
 
-// Inicia as atualizações automáticas
+// Inicia a verificação automática de dados no banco a cada 2 segundos
 setInterval(buscarDadosDoBanco, 2000);
 buscarDadosDoBanco();
 </script>
