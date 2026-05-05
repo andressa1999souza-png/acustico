@@ -6,53 +6,56 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// Configuração da conexão com o MySQL
-const db = mysql.createConnection({
+// Configuração do Pool de conexões
+const db = mysql.createPool({
     host: 'localhost',
     user: 'root', 
-    password: 'admin', // ⚠️ COLOQUE AQUI SUA SENHA DO MYSQL WORKBENCH
-    database: 'projeto_acustico_esp32'
+    password: 'admin',
+    database: 'projeto_acustico_esp32',
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0
 });
 
-// Testa a conexão
-db.connect(err => {
+// Verificação simples para saber se o pool está acessível
+db.getConnection((err, connection) => {
     if (err) {
-        console.error('Erro ao conectar no banco:', err);
+        console.error('❌ Erro ao obter conexão do pool:', err);
         return;
     }
-    console.log('✅ Conectado ao MySQL com sucesso!');
+    console.log('✅ Pool de conexões MySQL pronto!');
+    connection.release(); // Libera a conexão de teste de volta para o pool
 });
 
-// Rota para o ESP32 salvar dados no banco
+// Rota para o ESP32 salvar dados
 app.post('/api/leituras', (req, res) => {
     const { frequencia_hz, amplitude_db, detectou_ar } = req.body;
     
-    // Inserindo dados na tabela que você criou
     const query = 'INSERT INTO leituras_acusticas (frequencia_hz, amplitude_db, detectou_ar, timestamp_leitura) VALUES (?, ?, ?, NOW())';
     
+    // O pool.query gerencia a abertura e fechamento da conexão sozinho
     db.query(query, [frequencia_hz, amplitude_db, detectou_ar], (err, result) => {
         if (err) {
-            console.error(err);
+            console.error('Erro no INSERT:', err);
             return res.status(500).send('Erro ao salvar no banco');
         }
         res.status(200).send('Leitura salva com sucesso!');
     });
 });
 
-// Rota para o seu HTML puxar os dados do banco
+// Rota para o HTML puxar os dados
 app.get('/api/leituras', (req, res) => {
-    const query = 'SELECT * FROM leituras_acusticas ORDER BY timestamp_leitura DESC LIMIT 10';
+    const query = 'SELECT * FROM leituras_acusticas ORDER BY id DESC LIMIT 10';
     
     db.query(query, (err, results) => {
         if (err) {
-            console.error(err);
+            console.error('Erro no SELECT:', err);
             return res.status(500).send('Erro ao buscar dados');
         }
         res.json(results);
     });
 });
 
-// Liga o servidor
 app.listen(3000, () => {
     console.log('🚀 Servidor rodando na porta 3000');
 });
