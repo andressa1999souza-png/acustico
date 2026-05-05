@@ -19,6 +19,7 @@
   },
   "homepage": "https://github.com/andressa1999souza-png/acustico#readme",
   "dependencies": {
+    "@ngrok/ngrok": "^1.7.0",
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "mysql2": "^3.22.3"

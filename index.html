@@ -39,7 +39,6 @@
 
     /* Dashboard */
     .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
-    .grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:12px}
     .metric{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;position:relative;overflow:hidden}
     .metric-label{font-family:var(--font-mono);font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px}
     .metric-value{font-family:var(--font-mono);font-size:22px;font-weight:700;line-height:1}
@@ -124,14 +123,12 @@
     <canvas id="fftCanvas" height="80"></canvas>
   </div>
 
-  <!-- Controles e Alertas (Agora integrados com o Banco de Dados!) -->
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom: 20px;">
     <button class="btn-action btn-normal" onclick="inserirDadoManual(80, 30, false)">▶ INJETAR FLUXO NORMAL</button>
     <button class="btn-action btn-ar" onclick="inserirDadoManual(1850, 60, true)">⚠ INJETAR ENTRADA DE AR</button>
     <button class="btn-action btn-noti" onclick="solicitarPermissaoNotificacao()" style="margin-left:auto;">🔔 ATIVAR NOTIFICAÇÕES</button>
   </div>
 
-  <!-- Tabela de Histórico Integrada -->
   <div class="waveform">
     <div class="wf-label">📋 HISTÓRICO DE OCORRÊNCIAS (Puxado do MySQL)</div>
     <table class="history-table">
@@ -143,7 +140,6 @@
         </tr>
       </thead>
       <tbody id="corpoTabela">
-        <!-- Linhas geradas via JavaScript puxando do Node.js -->
       </tbody>
     </table>
   </div>
@@ -157,6 +153,11 @@
 </div>
 
 <script>
+// --- CONFIGURAÇÃO DE REDE ---
+// Substitua o IP abaixo pelo IP da sua máquina na rede local
+const SERVER_IP = '192.168.1.10'; 
+const API_URL = `https://ahoy-symphony-relearn.ngrok-free.dev`;
+
 // --- Controle de Abas ---
 function showTab(name) {
   document.querySelectorAll('.content').forEach(e => e.classList.remove('active'));
@@ -185,13 +186,11 @@ function enviarNotificacao(tipo, frequencia) {
     }
 }
 
-// --- Atualiza Textos na Tela ---
 function setMetric(id, val, color) {
   const el = document.getElementById(id);
   if (el) { el.textContent = val; if (color) el.style.color = color; }
 }
 
-// --- Função para Desenhar o Gráfico (Animado com dados do banco) ---
 const fftCtx = document.getElementById('fftCanvas').getContext('2d');
 let ultimaFrequenciaHz = 80;
 let modoAtualGrafico = 'normal';
@@ -206,7 +205,6 @@ function drawFFT() {
   const col = modoAtualGrafico === 'ar' ? '#e3b341' : '#58a6ff';
   const mag = modoAtualGrafico === 'ar' ? 0.75 : 0.4;
   const spread = modoAtualGrafico === 'ar' ? 1200 : 600;
-  // Adiciona uma pequena variação para parecer "ao vivo"
   const peakHz = ultimaFrequenciaHz + (Math.random() - 0.5) * 30;
 
   const bins = 64;
@@ -228,53 +226,47 @@ function drawFFT() {
     fftCtx.fillText(l, i * (w / 4) + 2, 78);
   });
   
-  requestAnimationFrame(drawFFT); // Mantém o gráfico se mexendo
+  requestAnimationFrame(drawFFT);
 }
-drawFFT(); // Inicia o gráfico
+drawFFT();
 
-// --- FUNÇÃO NOVA: Envia dados para o MySQL ao clicar nos botões ---
 async function inserirDadoManual(freq, amp, ar) {
     try {
-        await fetch('http://localhost:3000/api/leituras', {
+        await fetch(API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ frequencia_hz: freq, amplitude_db: amp, detectou_ar: ar })
         });
-        buscarDadosDoBanco(); // Atualiza a tela logo em seguida
+        buscarDadosDoBanco();
     } catch (erro) {
         console.error("Erro ao inserir dado:", erro);
-        alert("Erro ao conectar no servidor Node.js. Ele está rodando?");
+        alert(`Erro ao conectar no servidor ${SERVER_IP}. Verifique se o Node.js está rodando.`);
     }
 }
 
-// --- CONEXÃO COM O BANCO DE DADOS (Substitui a simulação) ---
 let ultimoAlertaNotificado = null;
 
 async function buscarDadosDoBanco() {
     try {
-        const resposta = await fetch('http://localhost:3000/api/leituras');
+        const resposta = await fetch(API_URL);
         const dados = await resposta.json();
 
-        if (dados.length > 0) {
-            const leituraAtual = dados[0]; // Pega a linha mais nova do banco
+        if (dados && dados.length > 0) {
+            const leituraAtual = dados[0]; 
 
-            // Atualiza os painéis principais
             setMetric('freq-val', leituraAtual.frequencia_hz, leituraAtual.detectou_ar ? 'var(--amber)' : 'var(--cyan)');
             setMetric('rms-val', leituraAtual.amplitude_db);
             
-            // Atualiza o gráfico
             ultimaFrequenciaHz = leituraAtual.frequencia_hz;
             modoAtualGrafico = leituraAtual.detectou_ar ? 'ar' : 'normal';
 
-            // Verifica Alertas e Notificações
             const alertContainer = document.getElementById('alert-container');
-            const idLeitura = leituraAtual.id; // O ID único que vem do MySQL
+            const idLeitura = leituraAtual.id;
             
             if (leituraAtual.detectou_ar) {
                 alertContainer.innerHTML = `<div class="alert-box alert-warn">⚠ ALERTA — ENTRADA DE AR NO SISTEMA</div>`;
                 document.getElementById('s-vazamento').className = 'metric-status status-warn';
                 
-                // Só apita no celular se for um alerta NOVO que acabou de chegar no banco
                 if (idLeitura !== ultimoAlertaNotificado) {
                     enviarNotificacao("ENTRADA DE AR", leituraAtual.frequencia_hz);
                     ultimoAlertaNotificado = idLeitura;
@@ -282,14 +274,13 @@ async function buscarDadosDoBanco() {
             } else {
                 alertContainer.innerHTML = `<div class="alert-box alert-ok">▶ SISTEMA NORMAL — nenhuma anomalia detectada</div>`;
                 document.getElementById('s-vazamento').className = 'metric-status status-ok';
-                ultimoAlertaNotificado = idLeitura; // Atualiza para não apitar dados velhos
+                ultimoAlertaNotificado = idLeitura;
             }
 
-            // --- Preenche a Tabela ---
             const tabela = document.getElementById('corpoTabela');
-            tabela.innerHTML = ''; // Limpa a tabela
+            tabela.innerHTML = '';
             
-            dados.forEach(leitura => {
+            dados.slice(0, 10).forEach(leitura => { // Mostra apenas os últimos 10
                 let dataObjeto = new Date(leitura.timestamp_leitura);
                 let hora = dataObjeto.getHours().toString().padStart(2, '0') + ":" + 
                            dataObjeto.getMinutes().toString().padStart(2, '0') + ":" + 
@@ -312,9 +303,8 @@ async function buscarDadosDoBanco() {
     }
 }
 
-// O site pergunta ao Node.js a cada 2 segundos se tem dados novos
 setInterval(buscarDadosDoBanco, 2000);
-buscarDadosDoBanco(); // Puxa logo que a página abre
+buscarDadosDoBanco();
 </script>
 </body>
 </html>
