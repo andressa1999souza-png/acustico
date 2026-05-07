@@ -94,7 +94,7 @@
 
 <div class="content active" id="tab-dashboard">
   <div id="alert-container">
-    <div class="alert-box alert-ok">▶ SISTEMA NORMAL — nenhuma anomalia detectada</div>
+    <div class="alert-box alert-ok">▶ SISTEMA ONLINE — Monitoramento ativo na AWS</div>
   </div>
 
   <div class="grid-3">
@@ -130,7 +130,7 @@
   </div>
 
   <div class="waveform">
-    <div class="wf-label">📋 HISTÓRICO DE OCORRÊNCIAS (Puxado do MySQL)</div>
+    <div class="wf-label">📋 HISTÓRICO DE OCORRÊNCIAS (MySQL AWS)</div>
     <table class="history-table">
       <thead>
         <tr>
@@ -154,10 +154,8 @@
 
 <script>
 // --- CONFIGURAÇÃO DE REDE ---
-// Atualizado para o seu novo IP da AWS
 const API_URL = "http://3.226.7.115:3000/api/leituras";
 
-// --- Controle de Abas ---
 function showTab(name) {
   document.querySelectorAll('.content').forEach(e => e.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(e => e.classList.remove('active'));
@@ -172,24 +170,17 @@ function solicitarPermissaoNotificacao() {
     alert("Seu navegador não suporta notificações.");
   } else if (Notification.permission === "granted") {
     alert("As notificações já estão ativadas!");
-  } else if (Notification.permission !== "denied") {
+  } else {
     Notification.requestPermission().then(permission => {
-      if (permission === "granted") {
-        alert("Notificações ativadas com sucesso!");
-      }
+      if (permission === "granted") alert("Notificações ativadas!");
     });
   }
 }
 
-// --- FUNÇÃO PARA INSERIR DADOS (SIMULAÇÃO PELOS BOTÕES) ---
+// --- FUNÇÃO PARA INSERIR DADOS (SIMULAÇÃO) ---
 async function inserirDadoManual(freq, amp, ar) {
-    const dadosSimulados = {
-        frequencia_hz: freq,
-        amplitude_db: amp,
-        detectou_ar: ar
-    };
-
-    console.log("👆 Enviando simulação para AWS:", dadosSimulados);
+    const dadosSimulados = { frequencia_hz: freq, amplitude_db: amp, detectou_ar: ar };
+    console.log("👆 Enviando para AWS:", dadosSimulados);
 
     try {
         const response = await fetch(API_URL, {
@@ -199,65 +190,50 @@ async function inserirDadoManual(freq, amp, ar) {
         });
 
         if (response.ok) {
-            console.log("✅ Sucesso ao gravar na AWS!");
+            console.log("✅ Gravado com sucesso na AWS!");
             await buscarDadosDoBanco();
         } else {
-            console.error("❌ Erro no servidor:", response.status);
+            console.error("❌ Erro no Servidor AWS:", response.status);
         }
     } catch (erro) {
-        console.error("❌ Erro ao inserir dado:", erro);
-        alert("Erro de conexão. Verifique se o servidor AWS e a porta 3000 estão ativos!");
+        console.error("❌ Falha de conexão com AWS:", erro);
+        alert("Erro de conexão com o servidor AWS na porta 3000. Verifique se a API está rodando!");
     }
 }
 
-// --- FUNÇÃO PARA BUSCAR E ATUALIZAR A TELA ---
+// --- BUSCAR DADOS ---
 function buscarDadosDoBanco() {
     fetch(API_URL)
     .then(response => {
-        if (!response.ok) throw new Error('Erro na rede: ' + response.status);
+        if (!response.ok) throw new Error('Status: ' + response.status);
         return response.json();
     })
     .then(dados => {
         if(dados && dados.length > 0) {
             const leituraAtual = dados[0];
-            
-            // 1. Atualiza painel numérico
             document.getElementById('freq-val').innerText = leituraAtual.frequencia_hz;
             document.getElementById('rms-val').innerText = leituraAtual.amplitude_db;
             
-            // 2. Atualiza estado do gráfico
             ultimaFrequenciaHz = leituraAtual.frequencia_hz;
             modoAtualGrafico = leituraAtual.detectou_ar ? 'ar' : 'normal';
 
-            // 3. Atualiza alerta visual
             const alertContainer = document.getElementById('alert-container');
             if(leituraAtual.detectou_ar) {
-                alertContainer.innerHTML = `<div class="alert-box alert-warn">⚠ ANOMALIA DETECTADA — Entrada de ar registrada!</div>`;
+                alertContainer.innerHTML = `<div class="alert-box alert-warn">⚠ ANOMALIA — Entrada de ar detectada!</div>`;
             } else {
-                alertContainer.innerHTML = `<div class="alert-box alert-ok">▶ SISTEMA NORMAL — nenhuma anomalia detectada</div>`;
+                alertContainer.innerHTML = `<div class="alert-box alert-ok">▶ SISTEMA NORMAL — Fluxo estável</div>`;
             }
 
-            // 4. Preenche a tabela
             const corpoTabela = document.getElementById('corpoTabela');
             corpoTabela.innerHTML = ""; 
-            
             dados.forEach(dado => {
                 const dataFormatada = new Date(dado.timestamp_leitura).toLocaleTimeString('pt-BR');
-                const tagIncidente = dado.detectou_ar ? '<span style="color:var(--amber); font-weight:bold;">⚠ Ar no Sistema</span>' : '<span style="color:var(--green)">Normal</span>';
-                
-                corpoTabela.innerHTML += `
-                    <tr>
-                        <td>${dataFormatada}</td>
-                        <td>${dado.frequencia_hz} Hz</td>
-                        <td>${tagIncidente}</td>
-                    </tr>
-                `;
+                const tagIncidente = dado.detectou_ar ? '<span style="color:var(--amber); font-weight:bold;">⚠ Ar</span>' : '<span style="color:var(--green)">OK</span>';
+                corpoTabela.innerHTML += `<tr><td>${dataFormatada}</td><td>${dado.frequencia_hz} Hz</td><td>${tagIncidente}</td></tr>`;
             });
         }
     })
-    .catch(erro => {
-        console.error("Erro ao buscar dados da AWS:", erro);
-    });
+    .catch(erro => console.error("Erro na sincronização AWS:", erro));
 }
 
 // --- GRÁFICO FFT ---
@@ -267,35 +243,22 @@ let modoAtualGrafico = 'normal';
 
 function drawFFT() {
   const w = fftCtx.canvas.offsetWidth || 600;
-  fftCtx.canvas.width = w;
-  fftCtx.canvas.height = 80;
-  fftCtx.fillStyle = '#010409';
-  fftCtx.fillRect(0, 0, w, 80);
+  fftCtx.canvas.width = w; fftCtx.canvas.height = 80;
+  fftCtx.fillStyle = '#010409'; fftCtx.fillRect(0, 0, w, 80);
   
   const col = modoAtualGrafico === 'ar' ? '#e3b341' : '#58a6ff';
   const mag = modoAtualGrafico === 'ar' ? 0.75 : 0.4;
-  const spread = modoAtualGrafico === 'ar' ? 1200 : 600;
-  const peakHz = ultimaFrequenciaHz + (Math.random() - 0.5) * 30;
+  const peakHz = ultimaFrequenciaHz + (Math.random() - 0.5) * 20;
 
-  const bins = 64;
-  const bw = w / bins;
+  const bins = 64; const bw = w / bins;
   for (let i = 0; i < bins; i++) {
     const hz = (i / bins) * 8000;
     const dist = Math.abs(hz - peakHz);
-    let h = mag * Math.exp(-dist * dist / (2 * spread * spread)) * 70;
+    let h = mag * Math.exp(-dist * dist / (2 * 800 * 800)) * 70;
     h += Math.random() * 4;
-    h = Math.min(h, 74);
-    fftCtx.fillStyle = col;
-    fftCtx.globalAlpha = 0.85;
+    fftCtx.fillStyle = col; fftCtx.globalAlpha = 0.8;
     fftCtx.fillRect(i * bw + 1, 78 - h, bw - 2, h);
   }
-  fftCtx.globalAlpha = 1;
-  fftCtx.fillStyle = '#444c56';
-  fftCtx.font = '9px Space Mono, monospace';
-  ['0','1k','2k','4k','8k'].forEach((l, i) => {
-    fftCtx.fillText(l, i * (w / 4) + 2, 78);
-  });
-  
   requestAnimationFrame(drawFFT);
 }
 
