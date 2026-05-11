@@ -1,7 +1,6 @@
 const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
-require('dotenv').config(); // Adicionado para ler as variáveis de ambiente do Render
 
 const app = express();
 const PORT = process.env.PORT || 10000; // O Render define a porta automaticamente
