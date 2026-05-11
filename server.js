@@ -1,29 +1,34 @@
 const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
+require('dotenv').config(); // Adicionado para ler as variáveis de ambiente do Render
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 10000; // O Render define a porta automaticamente
 
 // ==========================================
 // 1. MIDDLEWARES
 // ==========================================
 app.use(cors({
     origin: '*', 
-    methods: ['GET', 'POST'],
+    methods: ['GET', 'POST', 'OPTIONS'],
     allowedHeaders: ['Content-Type']
 }));
 
 app.use(express.json());
 
 // ==========================================
-// 2. CONFIGURAÇÃO DO BANCO DE DADOS
+// 2. CONFIGURAÇÃO DO BANCO DE DADOS (AIVEN ONLINE)
 // ==========================================
 const db = mysql.createPool({
-    host: 'localhost',
-    user: 'andressa', 
-    password: 'SuaSenhaForte123', // Mantenha a senha que você configurou no MySQL
-    database: 'projeto_acustico_esp32', 
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+    port: process.env.DB_PORT,
+    ssl: {
+        rejectUnauthorized: false // Obrigatório para bancos em nuvem como o Aiven
+    },
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0
@@ -35,7 +40,7 @@ db.getConnection((err, connection) => {
         console.error('❌ Erro de conexão com o MySQL:', err.message);
         return;
     }
-    console.log('✅ Conexão com MySQL estabelecida!');
+    console.log('✅ Conexão com o Aiven MySQL estabelecida!');
     
     const sqlTable = `
         CREATE TABLE IF NOT EXISTS leituras_acusticas (
@@ -58,7 +63,7 @@ db.getConnection((err, connection) => {
 // 3. ROTAS DA API
 // ==========================================
 
-// Rota para o ESP32 enviar dados
+// Rota para o ESP32-S3 enviar dados
 app.post('/api/leituras', (req, res) => {
     const { frequencia_hz, amplitude_db, detectou_ar } = req.body;
     
@@ -69,14 +74,14 @@ app.post('/api/leituras', (req, res) => {
     
     db.query(query, [frequencia_hz, amplitude_db, statusAr], (err, result) => {
         if (err) {
-            console.error('❌ Erve ao inserir dados:', err);
+            console.error('❌ Erro ao inserir dados:', err);
             return res.status(500).json({ erro: 'Erro interno ao salvar' });
         }
         res.status(200).json({ mensagem: 'Dados recebidos!', id: result.insertId });
     });
 });
 
-// Rota para o Front-end buscar os últimos dados
+// Rota para o Front-end (Dashboard) buscar os últimos dados
 app.get('/api/leituras', (req, res) => {
     const query = 'SELECT * FROM leituras_acusticas ORDER BY id DESC LIMIT 20';
     db.query(query, (err, results) => {
@@ -92,7 +97,7 @@ app.get('/api/leituras', (req, res) => {
 // 4. INICIALIZAÇÃO
 // ==========================================
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`\n🚀 API ACÚSTICA ONLINE`);
+    console.log(`\n🚀 API ACÚSTICA ONLINE NO RENDER`);
     console.log(`📡 Porta: ${PORT}`);
-    console.log(`🔗 Endpoint para o ESP32: http://seu-ip-da-aws:3000/api/leituras`);
+    console.log(`🔗 Endpoint para o ESP32-S3: https://NOME-DO-SEU-APP.onrender.com/api/leituras`);
 });

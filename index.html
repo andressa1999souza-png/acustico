@@ -1,272 +1,334 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ACOUSTIC PIPE MONITOR</title>
- 
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#0d1117">
- 
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap');
-    *{box-sizing:border-box;margin:0;padding:0}
-    :root{
-      --bg:#0d1117;--panel:#161b22;--card:#1c2128;--border:#30363d;
-      --green:#39d353;--cyan:#58a6ff;--amber:#e3b341;--red:#f85149;
-      --purple:#d2a8ff;--text:#e6edf3;--muted:#8b949e;
-      --font-mono:'Space Mono',monospace;--font-body:'DM Sans',sans-serif;
-    }
-    body{background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:14px;padding:0}
-    h2.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ACOUSTIC PIPE MONITOR</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap');
 
-    /* Cabeçalho */
-    .header{background:linear-gradient(135deg,#0d1117 0%,#161b22 100%);border-bottom:1px solid var(--border);padding:16px 20px;display:flex;align-items:center;gap:12px}
-    .header-dot{width:10px;height:10px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s ease-in-out infinite}
-    @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.7;transform:scale(1.15)}}
-    .header-title{font-family:var(--font-mono);font-size:13px;color:var(--cyan);letter-spacing:.05em}
-    .header-sub{font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:.08em;margin-top:2px}
-    .badge{font-family:var(--font-mono);font-size:9px;background:#21262d;border:1px solid var(--border);padding:2px 7px;border-radius:12px;color:var(--muted);margin-left:auto}
+:root{
+  --bg:#0d1117;
+  --panel:#161b22;
+  --card:#1c2128;
+  --border:#30363d;
+  --green:#39d353;
+  --cyan:#58a6ff;
+  --amber:#e3b341;
+  --purple:#bc8cff;
+  --text:#e6edf3;
+  --muted:#8b949e;
+  --font-mono:'Space Mono', monospace;
+  --font-body:'DM Sans', sans-serif;
+}
 
-    /* Abas */
-    .tabs{display:flex;gap:0;border-bottom:1px solid var(--border);background:var(--panel);padding:0 20px}
-    .tab{font-family:var(--font-mono);font-size:10px;padding:10px 14px;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;letter-spacing:.05em;transition:all .15s;user-select:none}
-    .tab:hover{color:var(--text)}
-    .tab.active{color:var(--cyan);border-bottom-color:var(--cyan)}
+*{
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+}
 
-    .content{display:none;padding:16px 20px}
-    .content.active{display:block}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--font-body);
+}
 
-    /* Dashboard */
-    .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
-    .metric{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;position:relative;overflow:hidden}
-    .metric-label{font-family:var(--font-mono);font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px}
-    .metric-value{font-family:var(--font-mono);font-size:22px;font-weight:700;line-height:1}
-    .metric-unit{font-family:var(--font-mono);font-size:11px;color:var(--muted);margin-top:2px}
-    .metric-status{position:absolute;top:10px;right:10px;width:7px;height:7px;border-radius:50%}
-    .status-ok{background:var(--green);box-shadow:0 0 6px var(--green)}
-    .status-warn{background:var(--amber);box-shadow:0 0 6px var(--amber);animation:blink 1s ease-in-out infinite}
-    .status-err{background:var(--red);box-shadow:0 0 6px var(--red);animation:blink .5s ease-in-out infinite}
-    @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.header{
+  background:var(--panel);
+  border-bottom:1px solid var(--border);
+  padding:16px 20px;
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
 
-    .alert-box{border-radius:8px;padding:10px 12px;margin-bottom:10px;font-family:var(--font-mono);font-size:11px;border:1px solid;display:flex;align-items:center;gap:8px}
-    .alert-ok{background:#0d2818;border-color:#1a4731;color:var(--green)}
-    .alert-warn{background:#2a1f00;border-color:#4d3a00;color:var(--amber)}
-    .alert-err{background:#2d0f0e;border-color:#5c1c1a;color:var(--red)}
+.header-dot{
+  width:10px;
+  height:10px;
+  border-radius:50%;
+  background:var(--green);
+  box-shadow:0 0 10px var(--green);
+}
 
-    .waveform{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:12px}
-    .wf-label{font-family:var(--font-mono);font-size:9px;color:var(--muted);letter-spacing:.1em;margin-bottom:8px}
-    canvas{display:block;width:100%!important}
+.content{
+  padding:20px;
+}
 
-    /* Botões */
-    .btn-action {font-family:var(--font-mono);font-size:10px;padding:7px 12px;border-radius:6px;cursor:pointer; transition: 0.2s;}
-    .btn-normal {background:var(--card);border:1px solid var(--border);color:var(--text);}
-    .btn-normal:hover {background:#21262d;}
-    .btn-ar {background:#2a1f00;border:1px solid #4d3a00;color:var(--amber);}
-    .btn-ar:hover {background:#3d2d00;}
-    .btn-noti {background:#0d2818;border:1px solid var(--green);color:var(--green);}
+.grid-3{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:10px;
+  margin-bottom:15px;
+}
 
-    /* Tabela de Histórico */
-    .history-table {width: 100%;border-collapse: collapse;margin-top: 10px;font-family: var(--font-mono);font-size: 10px;}
-    .history-table th, .history-table td {border: 1px solid var(--border);padding: 8px;text-align: left;color: var(--muted);}
-    .history-table th {background-color: #21262d;color: var(--cyan);letter-spacing: .05em;}
-    .history-table td {background-color: var(--card);}
-  </style>
+.metric{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:12px;
+}
+
+.metric-label{
+  font-size:10px;
+  color:var(--muted);
+  margin-bottom:5px;
+  font-family:var(--font-mono);
+}
+
+.metric-value{
+  font-size:24px;
+  font-weight:bold;
+  font-family:var(--font-mono);
+}
+
+.waveform{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:12px;
+  margin-top:15px;
+}
+
+.alert-box{
+  padding:10px;
+  border-radius:8px;
+  margin-bottom:10px;
+  font-family:var(--font-mono);
+}
+
+.alert-ok{
+  background:#0d2818;
+  color:var(--green);
+}
+
+.alert-warn{
+  background:#2a1f00;
+  color:var(--amber);
+}
+
+.btn-action{
+  padding:10px 15px;
+  border:none;
+  border-radius:6px;
+  cursor:pointer;
+  margin-right:10px;
+  font-weight:bold;
+}
+
+.btn-normal{
+  background:#30363d;
+  color:white;
+}
+
+.btn-ar{
+  background:#e3b341;
+  color:black;
+}
+
+.history-table{
+  width:100%;
+  border-collapse:collapse;
+  margin-top:10px;
+}
+
+.history-table th,
+.history-table td{
+  border:1px solid var(--border);
+  padding:8px;
+  font-size:12px;
+}
+</style>
 </head>
 <body>
-
-<h2 class="sr-only">Sistema de Monitoramento Acústico para Canos</h2>
 
 <div class="header">
   <div class="header-dot"></div>
   <div>
-    <div class="header-title">ACOUSTIC PIPE MONITOR v1.0</div>
-    <div class="header-sub">ESP32-S3 · INMP441 · SW420</div>
+    <h3>ACOUSTIC PIPE MONITOR</h3>
+    <small>RENDER + ESP32-S3 + AIVEN MYSQL</small>
   </div>
-  <div class="badge">PROTÓTIPO ACADÊMICO</div>
 </div>
 
-<div class="tabs">
-  <div class="tab active" onclick="showTab('dashboard')">DASHBOARD</div>
-  <div class="tab" onclick="showTab('diagram')">DIAGRAMA</div>
-  <div class="tab" onclick="showTab('code')">FIRMWARE</div>
-</div>
-
-<div class="content active" id="tab-dashboard">
+<div class="content">
   <div id="alert-container">
-    <div class="alert-box alert-ok">▶ SISTEMA ONLINE — Monitoramento ativo na AWS</div>
+    <div class="alert-box alert-ok">
+      ▶ MONITORAMENTO ATIVO
+    </div>
   </div>
 
   <div class="grid-3">
     <div class="metric">
-      <div class="metric-status status-ok" id="s-vazamento"></div>
-      <div class="metric-label">Freq. dominante</div>
+      <div class="metric-label">FREQUÊNCIA</div>
       <div class="metric-value" id="freq-val" style="color:var(--cyan)">0</div>
-      <div class="metric-unit">Hz — frequência principal</div>
     </div>
     <div class="metric">
-      <div class="metric-status status-ok" id="s-vibracao"></div>
-      <div class="metric-label">Vibração (SW420)</div>
+      <div class="metric-label">VIBRAÇÃO</div>
       <div class="metric-value" id="vib-val" style="color:var(--green)">0.12</div>
-      <div class="metric-unit">g — aceleração</div>
     </div>
     <div class="metric">
-      <div class="metric-status status-ok" id="s-pressao"></div>
-      <div class="metric-label">Nível sonoro RMS</div>
+      <div class="metric-label">RMS</div>
       <div class="metric-value" id="rms-val" style="color:var(--purple)">0</div>
-      <div class="metric-unit">dB — ambiente</div>
     </div>
   </div>
 
   <div class="waveform">
-    <div class="wf-label">ESPECTRO DE FREQUÊNCIAS — FFT</div>
-    <canvas id="fftCanvas" height="80"></canvas>
+    <canvas id="fftCanvas" height="100"></canvas>
   </div>
 
-  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom: 20px;">
-    <button class="btn-action btn-normal" onclick="inserirDadoManual(80, 30, false)">▶ INJETAR FLUXO NORMAL</button>
-    <button class="btn-action btn-ar" onclick="inserirDadoManual(1850, 60, true)">⚠ INJETAR ENTRADA DE AR</button>
-    <button class="btn-action btn-noti" onclick="solicitarPermissaoNotificacao()" style="margin-left:auto;">🔔 ATIVAR NOTIFICAÇÕES</button>
+  <div style="margin-top:15px">
+    <button class="btn-action btn-normal" onclick="inserirDadoManual(80,30,false)">
+      INJETAR NORMAL
+    </button>
+    <button class="btn-action btn-ar" onclick="inserirDadoManual(1850,60,true)">
+      INJETAR AR
+    </button>
   </div>
 
   <div class="waveform">
-    <div class="wf-label">📋 HISTÓRICO DE OCORRÊNCIAS (MySQL AWS)</div>
     <table class="history-table">
       <thead>
         <tr>
           <th>HORA</th>
           <th>FREQUÊNCIA</th>
-          <th>TIPO DE INCIDENTE</th>
+          <th>STATUS</th>
         </tr>
       </thead>
-      <tbody id="corpoTabela">
-      </tbody>
+      <tbody id="corpoTabela"></tbody>
     </table>
   </div>
 </div>
 
-<div class="content" id="tab-diagram">
-    <p style="color: var(--muted); font-family: var(--font-mono);">[Diagrama será carregado aqui]</p>
-</div>
-<div class="content" id="tab-code">
-    <p style="color: var(--muted); font-family: var(--font-mono);">[Firmware será carregado aqui]</p>
-</div>
-
 <script>
-// --- CONFIGURAÇÃO DE REDE ---
-// Procure essa linha no seu script e mude para o IP que VOCÊ TESTOU e funcionou:
-// Substitua o IP antigo por este link HTTPS
-const API_URL = "https://ahoy-symphony-relearn.ngrok-free.dev/api/leituras";
+// --- ATENÇÃO: SUBSTITUA PELA URL QUE O RENDER VAI TE FORNECER ---
+const API_URL = "https://seu-app-no-render.onrender.com/api/leituras"; 
 
-function showTab(name) {
-  document.querySelectorAll('.content').forEach(e => e.classList.remove('active'));
-  document.querySelectorAll('.tab').forEach(e => e.classList.remove('active'));
-  document.getElementById('tab-' + name).classList.add('active');
-  const tabs = document.querySelectorAll('.tab');
-  const map = {dashboard:0, diagram:1, code:2};
-  if (map[name] !== undefined) tabs[map[name]].classList.add('active');
-}
+let ultimaFreq = 80;
+let isAr = false;
 
-function solicitarPermissaoNotificacao() {
-  if (!("Notification" in window)) {
-    alert("Seu navegador não suporta notificações.");
-  } else if (Notification.permission === "granted") {
-    alert("As notificações já estão ativadas!");
-  } else {
-    Notification.requestPermission().then(permission => {
-      if (permission === "granted") alert("Notificações ativadas!");
+Notification.requestPermission();
+
+async function inserirDadoManual(freq, amp, ar){
+  const payload = {
+    frequencia_hz: freq,
+    amplitude_db: amp,
+    detectou_ar: ar
+  };
+
+  try{
+    const response = await fetch(API_URL,{
+      method:'POST',
+      mode:'cors',
+      headers:{
+        'Content-Type':'application/json' // Removido o header do Ngrok
+      },
+      body:JSON.stringify(payload)
     });
-  }
-}
 
-// --- FUNÇÃO PARA INSERIR DADOS (SIMULAÇÃO) ---
-async function inserirDadoManual(freq, amp, ar) {
-    const dadosSimulados = { frequencia_hz: freq, amplitude_db: amp, detectou_ar: ar };
-    console.log("👆 Enviando para AWS:", dadosSimulados);
-
-    try {
-        const response = await fetch(API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(dadosSimulados)
-        });
-
-        if (response.ok) {
-            console.log("✅ Gravado com sucesso na AWS!");
-            await buscarDadosDoBanco();
-        } else {
-            console.error("❌ Erro no Servidor AWS:", response.status);
-        }
-    } catch (erro) {
-        console.error("❌ Falha de conexão com AWS:", erro);
-        alert("Erro de conexão com o servidor AWS na porta 3000. Verifique se a API está rodando!");
+    if(!response.ok){
+      throw new Error("Erro POST");
     }
-}
-
-// --- BUSCAR DADOS ---
-function buscarDadosDoBanco() {
-    fetch(API_URL)
-    .then(response => {
-        if (!response.ok) throw new Error('Status: ' + response.status);
-        return response.json();
-    })
-    .then(dados => {
-        if(dados && dados.length > 0) {
-            const leituraAtual = dados[0];
-            document.getElementById('freq-val').innerText = leituraAtual.frequencia_hz;
-            document.getElementById('rms-val').innerText = leituraAtual.amplitude_db;
-            
-            ultimaFrequenciaHz = leituraAtual.frequencia_hz;
-            modoAtualGrafico = leituraAtual.detectou_ar ? 'ar' : 'normal';
-
-            const alertContainer = document.getElementById('alert-container');
-            if(leituraAtual.detectou_ar) {
-                alertContainer.innerHTML = `<div class="alert-box alert-warn">⚠ ANOMALIA — Entrada de ar detectada!</div>`;
-            } else {
-                alertContainer.innerHTML = `<div class="alert-box alert-ok">▶ SISTEMA NORMAL — Fluxo estável</div>`;
-            }
-
-            const corpoTabela = document.getElementById('corpoTabela');
-            corpoTabela.innerHTML = ""; 
-            dados.forEach(dado => {
-                const dataFormatada = new Date(dado.timestamp_leitura).toLocaleTimeString('pt-BR');
-                const tagIncidente = dado.detectou_ar ? '<span style="color:var(--amber); font-weight:bold;">⚠ Ar</span>' : '<span style="color:var(--green)">OK</span>';
-                corpoTabela.innerHTML += `<tr><td>${dataFormatada}</td><td>${dado.frequencia_hz} Hz</td><td>${tagIncidente}</td></tr>`;
-            });
-        }
-    })
-    .catch(erro => console.error("Erro na sincronização AWS:", erro));
-}
-
-// --- GRÁFICO FFT ---
-const fftCtx = document.getElementById('fftCanvas').getContext('2d');
-let ultimaFrequenciaHz = 80;
-let modoAtualGrafico = 'normal';
-
-function drawFFT() {
-  const w = fftCtx.canvas.offsetWidth || 600;
-  fftCtx.canvas.width = w; fftCtx.canvas.height = 80;
-  fftCtx.fillStyle = '#010409'; fftCtx.fillRect(0, 0, w, 80);
-  
-  const col = modoAtualGrafico === 'ar' ? '#e3b341' : '#58a6ff';
-  const mag = modoAtualGrafico === 'ar' ? 0.75 : 0.4;
-  const peakHz = ultimaFrequenciaHz + (Math.random() - 0.5) * 20;
-
-  const bins = 64; const bw = w / bins;
-  for (let i = 0; i < bins; i++) {
-    const hz = (i / bins) * 8000;
-    const dist = Math.abs(hz - peakHz);
-    let h = mag * Math.exp(-dist * dist / (2 * 800 * 800)) * 70;
-    h += Math.random() * 4;
-    fftCtx.fillStyle = col; fftCtx.globalAlpha = 0.8;
-    fftCtx.fillRect(i * bw + 1, 78 - h, bw - 2, h);
+    console.log("✅ Inserido");
+    await buscarDadosDoBanco();
+  }catch(error){
+    console.error("❌ POST:", error);
   }
-  requestAnimationFrame(drawFFT);
 }
 
-drawFFT();
-setInterval(buscarDadosDoBanco, 2000);
+async function buscarDadosDoBanco(){
+  try{
+    const response = await fetch(API_URL,{
+      method:'GET',
+      mode:'cors' // Removido o header do Ngrok
+    });
+
+    if(!response.ok){
+      throw new Error("Erro GET");
+    }
+
+    const dados = await response.json();
+    if(!dados || dados.length === 0) return;
+
+    const atual = dados[0];
+    ultimaFreq = atual.frequencia_hz || 0;
+    isAr = atual.detectou_ar || false;
+
+    document.getElementById('freq-val').innerText = ultimaFreq;
+    document.getElementById('rms-val').innerText = atual.amplitude_db || 0;
+
+    const alertBox = document.getElementById('alert-container');
+
+    if(isAr){
+      alertBox.innerHTML = `
+      <div class="alert-box alert-warn">
+      ⚠ ENTRADA DE AR DETECTADA
+      </div>`;
+      if(Notification.permission === "granted"){
+        new Notification("⚠ Entrada de ar detectada");
+      }
+    }else{
+      alertBox.innerHTML = `
+      <div class="alert-box alert-ok">
+      ▶ SISTEMA NORMAL
+      </div>`;
+    }
+
+    const corpo = document.getElementById('corpoTabela');
+    corpo.innerHTML = "";
+
+    dados.slice(0,10).forEach(item=>{
+      const hora = new Date(item.timestamp_leitura).toLocaleTimeString('pt-BR');
+      corpo.innerHTML += `
+      <tr>
+        <td>${hora}</td>
+        <td>${item.frequencia_hz} Hz</td>
+        <td>
+          ${item.detectou_ar
+            ? '<span style="color:orange">AR</span>'
+            : '<span style="color:lime">OK</span>'}
+        </td>
+      </tr>
+      `;
+    });
+  }catch(error){
+    console.error("❌ GET:", error);
+  }
+}
+
+const canvas = document.getElementById('fftCanvas');
+const ctx = canvas.getContext('2d');
+
+function desenharFFT(){
+  const w = canvas.clientWidth || 600;
+  const h = 100;
+  canvas.width = w;
+  canvas.height = h;
+
+  ctx.fillStyle = '#010409';
+  ctx.fillRect(0,0,w,h);
+
+  const bins = 60;
+  const bw = w / bins;
+
+  for(let i=0;i<bins;i++){
+    const hz = (i/bins)*4000;
+    const dist = Math.abs(hz - ultimaFreq);
+    const amp = Math.exp(-(dist*dist)/(2*700*700));
+    const barHeight = amp * (isAr ? 90 : 50);
+
+    ctx.fillStyle = isAr ? '#e3b341' : '#58a6ff';
+    ctx.fillRect(i*bw, h-barHeight, bw-1, barHeight);
+  }
+  requestAnimationFrame(desenharFFT);
+}
+
+desenharFFT();
 buscarDadosDoBanco();
+
+setInterval(()=>{
+  buscarDadosDoBanco();
+},3000);
+
 </script>
 </body>
 </html>
