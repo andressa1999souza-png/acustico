@@ -114,6 +114,7 @@ body{
   cursor:pointer;
   margin-right:10px;
   font-weight:bold;
+  margin-bottom: 10px;
 }
 
 .btn-normal{
@@ -123,6 +124,11 @@ body{
 
 .btn-ar{
   background:#e3b341;
+  color:black;
+}
+
+.btn-notify{
+  background:var(--cyan);
   color:black;
 }
 
@@ -177,6 +183,9 @@ body{
   </div>
 
   <div style="margin-top:15px">
+    <button class="btn-action btn-notify" onclick="ativarNotificacoes()">
+      🔔 ATIVAR ALERTAS
+    </button>
     <button class="btn-action btn-normal" onclick="inserirDadoManual(80,30,false)">
       INJETAR NORMAL
     </button>
@@ -200,13 +209,27 @@ body{
 </div>
 
 <script>
-// --- ATENÇÃO: SUBSTITUA PELA URL QUE O RENDER VAI TE FORNECER ---
 const API_URL = "https://acustico.onrender.com/api/leituras";
 
 let ultimaFreq = 80;
 let isAr = false;
 
-Notification.requestPermission();
+// Função para pedir permissão de notificação quando a usuária clica no botão
+async function ativarNotificacoes() {
+  if (!("Notification" in window)) {
+    alert("Seu navegador não suporta notificações.");
+    return;
+  }
+  
+  const permission = await Notification.requestPermission();
+  if (permission === "granted") {
+    new Notification("Monitoramento Acústico", {
+      body: "Alertas ativados! Você será notificada se houver entrada de ar."
+    });
+  } else {
+    alert("Permissão negada. Ative nas configurações do navegador se quiser receber os alertas.");
+  }
+}
 
 async function inserirDadoManual(freq, amp, ar){
   const payload = {
@@ -220,7 +243,7 @@ async function inserirDadoManual(freq, amp, ar){
       method:'POST',
       mode:'cors',
       headers:{
-        'Content-Type':'application/json' // Removido o header do Ngrok
+        'Content-Type':'application/json'
       },
       body:JSON.stringify(payload)
     });
@@ -239,7 +262,7 @@ async function buscarDadosDoBanco(){
   try{
     const response = await fetch(API_URL,{
       method:'GET',
-      mode:'cors' // Removido o header do Ngrok
+      mode:'cors'
     });
 
     if(!response.ok){
@@ -263,8 +286,12 @@ async function buscarDadosDoBanco(){
       <div class="alert-box alert-warn">
       ⚠ ENTRADA DE AR DETECTADA
       </div>`;
+      
+      // Dispara a notificação se o usuário permitiu
       if(Notification.permission === "granted"){
-        new Notification("⚠ Entrada de ar detectada");
+        new Notification("⚠ Alerta do Sistema", {
+            body: "Entrada de ar detectada na tubulação!"
+        });
       }
     }else{
       alertBox.innerHTML = `
@@ -284,7 +311,7 @@ async function buscarDadosDoBanco(){
         <td>${item.frequencia_hz} Hz</td>
         <td>
           ${item.detectou_ar
-            ? '<span style="color:orange">AR</span>'
+            ? '<span style="color:orange; font-weight:bold;">AR</span>'
             : '<span style="color:lime">OK</span>'}
         </td>
       </tr>
